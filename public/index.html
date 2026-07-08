@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Psychowrld Admin</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #222222;
+    --accent: #ff3b3b;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --text2: #888888;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+  }
+
+  [data-theme="light"] {
+    --bg: #f5f5f5;
+    --surface: #ffffff;
+    --surface2: #f0f0f0;
+    --border: #e0e0e0;
+    --accent: #e02020;
+    --accent2: #ff6b35;
+    --text: #111111;
+    --text2: #666666;
+    --success: #16a34a;
+    --warning: #d97706;
+    --info: #2563eb;
+  }
+
+  .theme-toggle {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+
+  .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 0%, #1a0505 0%, var(--bg) 70%);
+  }
+
+  [data-theme="light"] #login-screen {
+    background: radial-gradient(ellipse at 50% 0%, #ffe5e5 0%, var(--bg) 70%);
+  }
+
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    width: 380px;
+    text-align: center;
+  }
+
+  .login-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .login-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 32px;
+  }
+
+  .form-group { margin-bottom: 16px; text-align: left; }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary { background: var(--accent); color: white; width: 100%; justify-content: center; }
+  .btn-primary:hover { background: #e03030; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--text2); color: var(--text); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: #dc2626; color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* ── LAYOUT ── */
+  #app { display: none; min-height: 100vh; }
+
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-logo .brand {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .sidebar-logo .title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  .nav { flex: 1; padding: 16px 12px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text2);
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(255,59,59,0.15); color: var(--accent); }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 16px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .main {
+    margin-left: 220px;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .page-title { font-size: 24px; font-weight: 700; }
+  .page-subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .stat-label { font-size: 12px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
+  .stat-value { font-size: 32px; font-weight: 700; margin-top: 4px; font-family: 'Space Mono', monospace; }
+  .stat-card.accent .stat-value { color: var(--accent); }
+  .stat-card.success .stat-value { color: var(--success); }
+  .stat-card.warning .stat-value { color: var(--warning); }
+
+  /* ── TABLE ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-title { font-size: 15px; font-weight: 600; }
+
+  .filters { display: flex; gap: 10px; align-items: center; }
+
+  .filters select, .filters input {
+    width: auto;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 12px 16px; text-align: left; font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 14px 16px; font-size: 13px; border-bottom: 1px solid #161616; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-pending { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .badge-confirmed { background: rgba(59,130,246,0.15); color: var(--info); }
+  .badge-paid { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge-preparing { background: rgba(168,85,247,0.15); color: #a855f7; }
+  .badge-out_for_delivery { background: rgba(249,115,22,0.15); color: #f97316; }
+  .badge-delivered { background: rgba(34,197,94,0.2); color: var(--success); }
+  .badge-cancelled { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .badge-active { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge-inactive { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+  .product-img {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+
+  .product-img-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .actions { display: flex; gap: 6px; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 20px; }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .image-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .image-upload-area:hover { border-color: var(--accent); }
+  .image-upload-area img { max-width: 100%; max-height: 150px; border-radius: 8px; margin-top: 8px; }
+
+  .sizes-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+
+  .size-tag {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--surface2);
+  }
+
+  .size-tag.selected { border-color: var(--accent); color: var(--accent); background: rgba(255,59,59,0.1); }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text2);
+  }
+
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    z-index: 9999;
+    display: none;
+    gap: 8px;
+    align-items: center;
+    min-width: 200px;
+  }
+
+  .toast.show { display: flex; }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--accent); }
+
+  .search-bar { position: relative; }
+  .search-bar input { padding-left: 36px; }
+  .search-bar .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text2); }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+  }
+
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    transition: 0.2s;
+  }
+
+  .toggle-slider:before {
+    content: "";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  input:checked + .toggle-slider { background: var(--accent); }
+  input:checked + .toggle-slider:before { transform: translateX(18px); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div style="display:flex;justify-content:center;margin-bottom:16px">
+      <img src="/assets/logo.png" style="width:80px;height:80px;object-fit:contain" />
+    </div>
+    <div class="login-logo">Psychowrld</div>
+    <div class="login-title">Admin Dashboard</div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="Enter username" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    <div id="login-error" style="color:#ff3b3b;font-size:13px;margin-top:12px;display:none;">Invalid credentials</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" style="width:36px;height:36px;object-fit:contain" />
+        <div>
+          <div class="brand">Psychowrld</div>
+          <div class="title">Admin Panel</div>
+        </div>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="showPage('products')">
+        <span class="icon">🛍️</span> Products
+      </button>
+      <button class="nav-item" onclick="showPage('categories')">
+        <span class="icon">📂</span> Categories
+      </button>
+      <button class="nav-item" onclick="showPage('orders')">
+        <span class="icon">📦</span> Orders
+      </button>
+      <button class="nav-item" onclick="showPage('agents')">
+        <span class="icon">👥</span> Agents
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" style="width:100%;margin-bottom:8px">
+        🌙 Dark Mode
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" style="width:100%">🚪 Sign Out</button>
+    </div>
+  </div>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Overview of your store</div>
+        </div>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-value" id="stat-total">—</div></div>
+        <div class="stat-card warning"><div class="stat-label">Pending</div><div class="stat-value" id="stat-pending">—</div></div>
+        <div class="stat-card success"><div class="stat-label">Delivered</div><div class="stat-value" id="stat-delivered">—</div></div>
+        <div class="stat-card accent"><div class="stat-label">Revenue</div><div class="stat-value" id="stat-revenue">—</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Orders</div></div>
+        <div id="recent-orders-table"></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS -->
+    <div id="page-products" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Products</div>
+          <div class="page-subtitle">Manage your catalog</div>
+        </div>
+        <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="filters">
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search products..." oninput="filterProducts(this.value)" style="width:220px" />
+            </div>
+            <select onchange="filterByCategory(this.value)" id="cat-filter">
+              <option value="">All Categories</option>
+            </select>
+          </div>
+        </div>
+        <div id="products-table"></div>
+      </div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div id="page-categories" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Categories</div>
+          <div class="page-subtitle">Manage categories and subcategories</div>
+        </div>
+      </div>
+      <div id="categories-container"></div>
+    </div>
+
+    <!-- ORDERS -->
+    <div id="page-orders" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Orders</div>
+          <div class="page-subtitle">Manage customer orders</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="filters">
+            <select onchange="loadOrders(this.value)" id="order-status-filter">
+              <option value="">All Orders</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="paid">Paid</option>
+              <option value="preparing">Preparing</option>
+              <option value="out_for_delivery">Out for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div id="orders-table"></div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div id="page-agents" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Agents</div>
+          <div class="page-subtitle">Manage your team</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAgentModal()">+ Add Agent</button>
+      </div>
+      <div class="card">
+        <div id="agents-table"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="product-modal-title">Add Product</div>
+      <button class="modal-close" onclick="closeProductModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="product-id" />
+      <div class="form-group">
+        <label>Product Images (up to 5)</label>
+        <div class="image-upload-area" onclick="document.getElementById('product-image').click()">
+          <div id="image-preview">
+            <div style="font-size:32px">📸</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload images (select multiple)</div>
+          </div>
+          <input type="file" id="product-image" accept="image/*" multiple style="display:none" onchange="previewImages(this)" />
+        </div>
+        <div id="existing-images" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" id="product-name" placeholder="e.g. Home Jersey" />
+        </div>
+        <div class="form-group">
+          <label>Price (₦)</label>
+          <input type="number" id="product-price" placeholder="e.g. 40000" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <input type="text" id="product-category" placeholder="e.g. Football" list="category-list" />
+          <datalist id="category-list"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Subcategory</label>
+          <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Emoji</label>
+          <input type="text" id="product-emoji" placeholder="⚽" maxlength="4" />
+        </div>
+        <div class="form-group">
+          <label>Available</label>
+          <select id="product-available">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="product-description" rows="2" placeholder="Short product description"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Colors</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="color-input" placeholder="e.g. Black, Red, Navy Blue" style="flex:1" onkeydown="if(event.key==='Enter'){addColor();event.preventDefault()}" />
+          <button class="btn btn-ghost btn-sm" onclick="addColor()" type="button">Add</button>
+        </div>
+        <div id="colors-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div class="form-group">
+        <label>Sizes</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="size-input" placeholder="e.g. S, M, L, XL, UK 9, Youth M, 32 waist" style="flex:1" onkeydown="if(event.key==='Enter'){addSize();event.preventDefault()}" />
+          <button class="btn btn-ghost btn-sm" onclick="addSize()" type="button">Add</button>
+        </div>
+        <div id="sizes-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeProductModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGENT MODAL -->
+<div class="modal-overlay" id="agent-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="agent-modal-title">Add Agent</div>
+      <button class="modal-close" onclick="closeAgentModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="agent-id" />
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="agent-name" placeholder="e.g. John Doe" />
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number</label>
+        <input type="text" id="agent-number" placeholder="e.g. 2348012345678" />
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="agent-role">
+          <option value="agent">Agent</option>
+          <option value="senior_agent">Senior Agent</option>
+          <option value="manager">Manager</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAgentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAgent()">Save Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER DETAIL MODAL -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="order-modal-title">Order Details</div>
+      <button class="modal-close" onclick="closeModal('order-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="order-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('order-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('pw_token');
+let allProducts = [];
+let allAgents = [];
+
+// ── AUTH ──
+async function doLogin() {
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+  const res = await fetch(`${API}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (data.token) {
+    token = data.token;
+    localStorage.setItem('pw_token', token);
+    showApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('pw_token');
+  location.reload();
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  setTimeout(initTheme, 50);
+  loadDashboard();
+  loadProducts();
+  loadAgents();
+}
+
+function authHeaders() {
+  return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+}
+
+// ── NAVIGATION ──
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (page === 'orders') loadOrders('');
+  if (page === 'categories') loadCategories();
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  const res = await fetch(`${API}/api/orders/stats`, { headers: authHeaders() });
+  const stats = await res.json();
+  document.getElementById('stat-total').textContent = stats.total || 0;
+  document.getElementById('stat-pending').textContent = stats.pending || 0;
+  document.getElementById('stat-delivered').textContent = stats.delivered || 0;
+  document.getElementById('stat-revenue').textContent = '₦' + ((stats.revenue || 0) / 1000).toFixed(0) + 'k';
+
+  const res2 = await fetch(`${API}/api/orders?limit=10`, { headers: authHeaders() });
+  const data = await res2.json();
+  renderOrdersTable(data.orders, 'recent-orders-table', true);
+}
+
+// ── PRODUCTS ──
+async function loadProducts() {
+  const res = await fetch(`${API}/api/products`, { headers: authHeaders() });
+  allProducts = await res.json();
+  renderProductsTable(allProducts);
+
+  // Populate category filter
+  const cats = [...new Set(allProducts.map(p => p.category))].sort();
+  const catFilter = document.getElementById('cat-filter');
+  catFilter.innerHTML = '<option value="">All Categories</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+
+  // Populate datalist for modal
+  const dl = document.getElementById('category-list');
+  dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+}
+
+function filterProducts(query) {
+  const filtered = allProducts.filter(p =>
+    p.name.toLowerCase().includes(query.toLowerCase()) ||
+    p.category.toLowerCase().includes(query.toLowerCase())
+  );
+  renderProductsTable(filtered);
+}
+
+function filterByCategory(cat) {
+  const filtered = cat ? allProducts.filter(p => p.category === cat) : allProducts;
+  renderProductsTable(filtered);
+}
+
+function renderProductsTable(products) {
+  const el = document.getElementById('products-table');
+  if (!products.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🛍️</div><p>No products found</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Image</th><th>Name</th><th>Category</th><th>Subcategory</th>
+        <th>Price</th><th>Sizes</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${products.map(p => `
+        <tr>
+          <td>${p.imageUrl
+            ? `<img src="${p.imageUrl}" class="product-img" />`
+            : `<div class="product-img-placeholder">${p.emoji || '🛍️'}</div>`
+          }</td>
+          <td><strong>${p.name}</strong></td>
+          <td>${p.category}</td>
+          <td style="color:var(--text2)">${p.subcategory}</td>
+          <td>₦${p.price.toLocaleString()}</td>
+          <td style="font-size:12px;color:var(--text2)">${(p.sizes || []).join(', ') || '—'}</td>
+          <td><span class="badge badge-${p.available ? 'active' : 'inactive'}">${p.available ? 'Active' : 'Hidden'}</span></td>
+          <td><div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleProduct('${p._id}', ${p.available})">${p.available ? '🔴' : '🟢'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p._id}')">🗑️</button>
+          </div></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+function openProductModal(product = null) {
+  document.getElementById('product-modal-title').textContent = product ? 'Edit Product' : 'Add Product';
+  document.getElementById('product-id').value = product?._id || '';
+  document.getElementById('product-name').value = product?.name || '';
+  document.getElementById('product-price').value = product?.price || '';
+  document.getElementById('product-category').value = product?.category || '';
+  document.getElementById('product-subcategory').value = product?.subcategory || '';
+  document.getElementById('product-emoji').value = product?.emoji || '🛍️';
+  document.getElementById('product-description').value = product?.description || '';
+  document.getElementById('product-available').value = product ? String(product.available) : 'true';
+
+  // Reset sizes
+  selectedSizes = product?.sizes || [];
+  renderSizeTags();
+
+  // Reset colors
+  selectedColors = product?.colors || [];
+  renderColorTags();
+
+  // Reset images
+  imagesToRemove = [];
+  document.getElementById('image-preview').innerHTML = `<div style="font-size:32px">📸</div><div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload images</div>`;
+
+  // Show existing images
+  const existingEl = document.getElementById('existing-images');
+  if (product?.images?.length) {
+    existingEl.innerHTML = product.images.map((url, i) => `
+      <div style="position:relative">
+        <img src="${url}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
+        <span onclick="markImageForRemoval('${product.imagePublicIds?.[i] || ''}', this.parentElement)"
+          style="position:absolute;top:-6px;right:-6px;background:var(--accent);color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer">✕</span>
+      </div>
+    `).join('');
+  } else {
+    existingEl.innerHTML = '';
+  }
+
+  document.getElementById('product-modal').classList.add('open');
+}
+
+function markImageForRemoval(publicId, el) {
+  if (publicId) imagesToRemove.push(publicId);
+  el.remove();
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').classList.remove('open');
+  document.getElementById('product-image').value = '';
+}
+
+function editProduct(product) { openProductModal(product); }
+
+let selectedColors = [];
+let selectedSizes = [];
+let imagesToRemove = [];
+
+function addSize() {
+  const input = document.getElementById('size-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedSizes.includes(val)) {
+    selectedSizes.push(val);
+    renderSizeTags();
+  }
+  input.value = '';
+}
+
+function removeSize(size) {
+  selectedSizes = selectedSizes.filter(s => s !== size);
+  renderSizeTags();
+}
+
+function renderSizeTags() {
+  const el = document.getElementById('sizes-tags');
+  el.innerHTML = selectedSizes.map(s => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${s} <span style="cursor:pointer;color:var(--accent)" onclick="removeSize('${s}')">✕</span>
+    </div>
+  `).join('');
+}
+
+function addColor() {
+  const input = document.getElementById('color-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedColors.includes(val)) {
+    selectedColors.push(val);
+    renderColorTags();
+  }
+  input.value = '';
+}
+
+function removeColor(color) {
+  selectedColors = selectedColors.filter(c => c !== color);
+  renderColorTags();
+}
+
+function renderColorTags() {
+  const el = document.getElementById('colors-tags');
+  el.innerHTML = selectedColors.map(c => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${c} <span style="cursor:pointer;color:var(--accent)" onclick="removeColor('${c}')">✕</span>
+    </div>
+  `).join('');
+}
+
+function previewImages(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const preview = document.getElementById('image-preview');
+  preview.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">` +
+    files.map(f => {
+      const url = URL.createObjectURL(f);
+      return `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />`;
+    }).join('') +
+    `</div><div style="font-size:12px;color:var(--text2);margin-top:6px">${files.length} image(s) selected</div>`;
+}
+
+async function saveProduct() {
+  const id = document.getElementById('product-id').value;
+  const imageFiles = document.getElementById('product-image').files;
+
+  const formData = new FormData();
+  formData.append('name', document.getElementById('product-name').value);
+  formData.append('price', document.getElementById('product-price').value);
+  formData.append('category', document.getElementById('product-category').value);
+  formData.append('subcategory', document.getElementById('product-subcategory').value);
+  formData.append('emoji', document.getElementById('product-emoji').value);
+  formData.append('description', document.getElementById('product-description').value);
+  formData.append('available', document.getElementById('product-available').value);
+  formData.append('sizes', JSON.stringify(selectedSizes));
+  formData.append('colors', JSON.stringify(selectedColors));
+  if (imagesToRemove.length) formData.append('removeImages', JSON.stringify(imagesToRemove));
+  for (const file of imageFiles) formData.append('images', file);
+
+  const url = id ? `${API}/api/products/${id}` : `${API}/api/products`;
+  const method = id ? 'PUT' : 'POST';
+
+  const res = await fetch(url, {
+    method,
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+
+  if (res.ok) {
+    showToast('Product saved!', 'success');
+    closeProductModal();
+    loadProducts();
+  } else {
+    const err = await res.json();
+    showToast(err.error || 'Failed to save', 'error');
+  }
+}
+
+async function toggleProduct(id, current) {
+  await fetch(`${API}/api/products/${id}/toggle`, { method: 'PATCH', headers: authHeaders() });
+  showToast(current ? 'Product hidden' : 'Product activated', 'success');
+  loadProducts();
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Delete this product?')) return;
+  await fetch(`${API}/api/products/${id}`, { method: 'DELETE', headers: authHeaders() });
+  showToast('Product deleted', 'success');
+  loadProducts();
+}
+
+// ── ORDERS ──
+async function loadOrders(status = '') {
+  const url = status ? `${API}/api/orders?status=${status}` : `${API}/api/orders`;
+  const res = await fetch(url, { headers: authHeaders() });
+  const data = await res.json();
+  renderOrdersTable(data.orders, 'orders-table', false);
+}
+
+function renderOrdersTable(orders, containerId, mini = false) {
+  const el = document.getElementById(containerId);
+  if (!orders?.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><p>No orders yet</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Order ID</th><th>Customer</th><th>Total</th><th>Status</th>
+        ${!mini ? '<th>Agent</th>' : ''}<th>Date</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${orders.map(o => `
+        <tr>
+          <td><strong>${o.orderId}</strong></td>
+          <td style="font-family:monospace;font-size:12px">+${o.waNumber}</td>
+          <td>₦${(o.total || 0).toLocaleString()}</td>
+          <td><span class="badge badge-${o.status}">${o.status?.replace('_',' ')}</span></td>
+          ${!mini ? `<td style="color:var(--text2);font-size:12px">${o.assignedAgent || '—'}</td>` : ''}
+          <td style="color:var(--text2);font-size:12px">${new Date(o.createdAt).toLocaleDateString()}</td>
+          <td><div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='viewOrder(${JSON.stringify(o)})'>👁️</button>
+            ${!mini ? `<select onchange="updateOrderStatus('${o.orderId}', this.value)" style="padding:4px 8px;font-size:12px;width:auto">
+              <option value="">Update status</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="paid">Paid</option>
+              <option value="preparing">Preparing</option>
+              <option value="out_for_delivery">Out for Delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>` : ''}
+          </div></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+function viewOrder(order) {
+  document.getElementById('order-modal-title').textContent = `Order ${order.orderId}`;
+  document.getElementById('order-modal-body').innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">CUSTOMER</div>
+      <div>+${order.waNumber}</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">DELIVERY ADDRESS</div>
+      <div>${order.deliveryAddress || '—'}</div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">ITEMS</div>
+      ${(order.items || []).map(i => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span>${i.name} × ${i.quantity}</span>
+          <span>₦${(i.price * i.quantity).toLocaleString()}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div style="padding-top:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:var(--text2)">Subtotal</span><span>₦${(order.subtotal||0).toLocaleString()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:var(--text2)">Delivery</span><span>₦${(order.deliveryFee||0).toLocaleString()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px">
+        <span>Total</span><span>₦${(order.total||0).toLocaleString()}</span>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px;align-items:center">
+      <span style="font-size:12px;color:var(--text2)">Assign to agent:</span>
+      <select id="assign-agent-select" style="flex:1;padding:8px;font-size:13px">
+        <option value="">Select agent</option>
+        ${allAgents.map(a => `<option value="${a._id}">${a.name}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="assignAgent('${order.orderId}')">Assign</button>
+    </div>
+  `;
+  document.getElementById('order-modal').classList.add('open');
+}
+
+async function updateOrderStatus(orderId, status) {
+  if (!status) return;
+  await fetch(`${API}/api/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ status })
+  });
+  showToast('Order status updated', 'success');
+  loadOrders(document.getElementById('order-status-filter')?.value || '');
+  loadDashboard();
+}
+
+async function assignAgent(orderId) {
+  const agentId = document.getElementById('assign-agent-select').value;
+  if (!agentId) return showToast('Select an agent first', 'error');
+  await fetch(`${API}/api/orders/${orderId}/assign`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ agentId })
+  });
+  showToast('Agent assigned!', 'success');
+  closeModal('order-modal');
+  loadOrders('');
+}
+
+// ── AGENTS ──
+async function loadAgents() {
+  const res = await fetch(`${API}/api/agents`, { headers: authHeaders() });
+  allAgents = await res.json();
+  renderAgentsTable(allAgents);
+}
+
+function renderAgentsTable(agents) {
+  const el = document.getElementById('agents-table');
+  if (!agents.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No agents yet. Add your first agent.</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Name</th><th>WhatsApp</th><th>Role</th><th>Status</th><th>Orders</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${agents.map(a => `
+        <tr>
+          <td><strong>${a.name}</strong></td>
+          <td style="font-family:monospace;font-size:12px">+${a.whatsappNumber}</td>
+          <td style="text-transform:capitalize">${a.role?.replace('_',' ')}</td>
+          <td><span class="badge badge-${a.active ? 'active' : 'inactive'}">${a.active ? 'Active' : 'Inactive'}</span></td>
+          <td>${a.assignedOrders}</td>
+          <td><div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='editAgent(${JSON.stringify(a)})'>✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleAgent('${a._id}', ${a.active})">${a.active ? '🔴' : '🟢'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteAgent('${a._id}')">🗑️</button>
+          </div></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+function openAgentModal() {
+  document.getElementById('agent-modal-title').textContent = 'Add Agent';
+  document.getElementById('agent-id').value = '';
+  document.getElementById('agent-name').value = '';
+  document.getElementById('agent-number').value = '';
+  document.getElementById('agent-role').value = 'agent';
+  document.getElementById('agent-modal').classList.add('open');
+}
+
+function closeAgentModal() { document.getElementById('agent-modal').classList.remove('open'); }
+
+function editAgent(agent) {
+  document.getElementById('agent-modal-title').textContent = 'Edit Agent';
+  document.getElementById('agent-id').value = agent._id;
+  document.getElementById('agent-name').value = agent.name;
+  document.getElementById('agent-number').value = agent.whatsappNumber;
+  document.getElementById('agent-role').value = agent.role;
+  document.getElementById('agent-modal').classList.add('open');
+}
+
+async function saveAgent() {
+  const id = document.getElementById('agent-id').value;
+  const body = {
+    name: document.getElementById('agent-name').value,
+    whatsappNumber: document.getElementById('agent-number').value,
+    role: document.getElementById('agent-role').value,
+  };
+  const url = id ? `${API}/api/agents/${id}` : `${API}/api/agents`;
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+  if (res.ok) {
+    showToast('Agent saved!', 'success');
+    closeAgentModal();
+    loadAgents();
+  } else {
+    showToast('Failed to save agent', 'error');
+  }
+}
+
+async function toggleAgent(id, current) {
+  await fetch(`${API}/api/agents/${id}/toggle`, { method: 'PATCH', headers: authHeaders() });
+  showToast(current ? 'Agent deactivated' : 'Agent activated', 'success');
+  loadAgents();
+}
+
+async function deleteAgent(id) {
+  if (!confirm('Delete this agent?')) return;
+  await fetch(`${API}/api/agents/${id}`, { method: 'DELETE', headers: authHeaders() });
+  showToast('Agent deleted', 'success');
+  loadAgents();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── TOAST ──
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = (type === 'success' ? '✅ ' : '❌ ') + msg;
+  toast.className = `toast show ${type}`;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── CATEGORIES ──
+let categoriesData = {};
+
+async function loadCategories() {
+  const res = await fetch(`${API}/api/products/categories`, { headers: authHeaders() });
+  categoriesData = await res.json();
+  renderCategories();
+}
+
+function renderCategories() {
+  const el = document.getElementById('categories-container');
+  const cats = Object.keys(categoriesData).sort();
+
+  if (!cats.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><p>No categories yet. Add products first.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = cats.map(cat => `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <strong style="font-size:15px">${cat}</strong>
+          <span style="color:var(--text2);font-size:12px">${categoriesData[cat].length} subcategories</span>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="renameCategory('${cat}')">✏️ Rename</button>
+          <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCategory('${cat}')">🗑️ Delete</button>
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">
+        ${categoriesData[cat].map(sub => `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px">${sub}</span>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="renameSubcategory('${cat}','${sub}')">✏️</button>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px;color:#ef4444" onclick="deleteSubcategory('${cat}','${sub}')">🗑️</button>
+          </div>
+        `).join('')}
+        <button class="btn btn-ghost btn-sm" onclick="addSubcategory('${cat}')" style="border-style:dashed">+ Add Subcategory</button>
+      </div>
+    </div>
+  `).join('') + `
+    <button class="btn btn-primary" onclick="addCategory()" style="margin-top:8px">+ Add New Category</button>
+  `;
+}
+
+async function addCategory() {
+  const name = prompt('Enter new category name:');
+  if (!name?.trim()) return;
+  const subName = prompt(`Enter first subcategory for "${name}":`);
+  if (!subName?.trim()) return;
+
+  // Create a placeholder product to establish the category
+  const formData = new FormData();
+  formData.append('name', `${subName} (placeholder)`);
+  formData.append('price', '0');
+  formData.append('category', name.trim());
+  formData.append('subcategory', subName.trim());
+  formData.append('emoji', '🛍️');
+  formData.append('sizes', JSON.stringify([]));
+  formData.append('available', 'false');
+
+  await fetch(`${API}/api/products`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+
+  showToast(`Category "${name}" created!`, 'success');
+  loadCategories();
+  loadProducts();
+}
+
+async function addSubcategory(category) {
+  const name = prompt(`Enter new subcategory name for "${category}":`);
+  if (!name?.trim()) return;
+
+  const formData = new FormData();
+  formData.append('name', `${name} (placeholder)`);
+  formData.append('price', '0');
+  formData.append('category', category);
+  formData.append('subcategory', name.trim());
+  formData.append('emoji', '🛍️');
+  formData.append('sizes', JSON.stringify([]));
+  formData.append('available', 'false');
+
+  await fetch(`${API}/api/products`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+
+  showToast(`Subcategory "${name}" added!`, 'success');
+  loadCategories();
+  loadProducts();
+}
+
+async function renameCategory(oldName) {
+  const newName = prompt(`Rename "${oldName}" to:`, oldName);
+  if (!newName?.trim() || newName === oldName) return;
+
+  await fetch(`${API}/api/products/categories/rename`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ oldName, newName: newName.trim() })
+  });
+
+  showToast('Category renamed!', 'success');
+  loadCategories();
+  loadProducts();
+}
+
+async function renameSubcategory(category, oldSub) {
+  const newSub = prompt(`Rename "${oldSub}" to:`, oldSub);
+  if (!newSub?.trim() || newSub === oldSub) return;
+
+  await fetch(`${API}/api/products/categories/rename-sub`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ category, oldSub, newSub: newSub.trim() })
+  });
+
+  showToast('Subcategory renamed!', 'success');
+  loadCategories();
+  loadProducts();
+}
+
+async function deleteCategory(category) {
+  const count = categoriesData[category]?.length || 0;
+  if (!confirm(`Delete "${category}" and ALL its products? This cannot be undone.`)) return;
+
+  await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+
+  showToast(`Category deleted`, 'success');
+  loadCategories();
+  loadProducts();
+}
+
+async function deleteSubcategory(category, sub) {
+  if (!confirm(`Delete "${sub}" and all its products?`)) return;
+
+  await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}/sub/${encodeURIComponent(sub)}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+
+  showToast(`Subcategory deleted`, 'success');
+  loadCategories();
+  loadProducts();
+}
+
+// ── THEME ──
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('pw_theme', next);
+  document.getElementById('theme-btn').textContent = next === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('pw_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', saved);
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = saved === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+}
+
+// ── INIT ──
+initTheme();
+if (token) showApp();
+</script>
+</body>
+</html>
