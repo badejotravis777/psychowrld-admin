@@ -638,20 +638,11 @@
       </div>
       <div class="form-group">
         <label>Sizes</label>
-        <div class="sizes-grid" id="sizes-grid">
-          <div class="size-tag" onclick="toggleSize(this,'S')">S</div>
-          <div class="size-tag" onclick="toggleSize(this,'M')">M</div>
-          <div class="size-tag" onclick="toggleSize(this,'L')">L</div>
-          <div class="size-tag" onclick="toggleSize(this,'XL')">XL</div>
-          <div class="size-tag" onclick="toggleSize(this,'XXL')">XXL</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 6')">UK 6</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 7')">UK 7</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 8')">UK 8</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 9')">UK 9</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 10')">UK 10</div>
-          <div class="size-tag" onclick="toggleSize(this,'UK 11')">UK 11</div>
-          <div class="size-tag" onclick="toggleSize(this,'One Size')">One Size</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="size-input" placeholder="e.g. S, M, L, XL, UK 9, Youth M, 32 waist" style="flex:1" onkeydown="if(event.key==='Enter'){addSize();event.preventDefault()}" />
+          <button class="btn btn-ghost btn-sm" onclick="addSize()" type="button">Add</button>
         </div>
+        <div id="sizes-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -853,14 +844,8 @@ function openProductModal(product = null) {
   document.getElementById('product-available').value = product ? String(product.available) : 'true';
 
   // Reset sizes
-  document.querySelectorAll('.size-tag').forEach(t => t.classList.remove('selected'));
-  if (product?.sizes) {
-    product.sizes.forEach(s => {
-      document.querySelectorAll('.size-tag').forEach(t => {
-        if (t.textContent === s) t.classList.add('selected');
-      });
-    });
-  }
+  selectedSizes = product?.sizes || [];
+  renderSizeTags();
 
   // Reset colors
   selectedColors = product?.colors || [];
@@ -900,7 +885,33 @@ function closeProductModal() {
 function editProduct(product) { openProductModal(product); }
 
 let selectedColors = [];
+let selectedSizes = [];
 let imagesToRemove = [];
+
+function addSize() {
+  const input = document.getElementById('size-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedSizes.includes(val)) {
+    selectedSizes.push(val);
+    renderSizeTags();
+  }
+  input.value = '';
+}
+
+function removeSize(size) {
+  selectedSizes = selectedSizes.filter(s => s !== size);
+  renderSizeTags();
+}
+
+function renderSizeTags() {
+  const el = document.getElementById('sizes-tags');
+  el.innerHTML = selectedSizes.map(s => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${s} <span style="cursor:pointer;color:var(--accent)" onclick="removeSize('${s}')">✕</span>
+    </div>
+  `).join('');
+}
 
 function addColor() {
   const input = document.getElementById('color-input');
@@ -939,11 +950,8 @@ function previewImages(input) {
     `</div><div style="font-size:12px;color:var(--text2);margin-top:6px">${files.length} image(s) selected</div>`;
 }
 
-function toggleSize(el, size) { el.classList.toggle('selected'); }
-
 async function saveProduct() {
   const id = document.getElementById('product-id').value;
-  const sizes = [...document.querySelectorAll('.size-tag.selected')].map(t => t.textContent);
   const imageFiles = document.getElementById('product-image').files;
 
   const formData = new FormData();
@@ -954,7 +962,7 @@ async function saveProduct() {
   formData.append('emoji', document.getElementById('product-emoji').value);
   formData.append('description', document.getElementById('product-description').value);
   formData.append('available', document.getElementById('product-available').value);
-  formData.append('sizes', JSON.stringify(sizes));
+  formData.append('sizes', JSON.stringify(selectedSizes));
   formData.append('colors', JSON.stringify(selectedColors));
   if (imagesToRemove.length) formData.append('removeImages', JSON.stringify(imagesToRemove));
   for (const file of imageFiles) formData.append('images', file);
