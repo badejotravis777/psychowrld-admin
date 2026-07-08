@@ -17,6 +17,10 @@ const storage = new CloudinaryStorage({
   },
 });
 
+// Single image upload
 const upload = multer({ storage });
 
-module.exports = { cloudinary, upload };
+// Multiple images upload (max 5)
+const uploadMultiple = multer({ storage }).array("images", 5);
+
+module.exports = { cloudinary, upload, uploadMultiple };

@@ -10,6 +10,10 @@ const productSchema = new mongoose.Schema(
     available: { type: Boolean, default: true },
     emoji: { type: String, default: "🛍️" },
     sizes: { type: [String], default: [] },
+    colors: { type: [String], default: [] },
+    images: { type: [String], default: [] },        // multiple image URLs
+    imagePublicIds: { type: [String], default: [] }, // multiple cloudinary IDs
+    // Keep single for backward compat
     imageUrl: { type: String, default: "" },
     imagePublicId: { type: String, default: "" },
   },

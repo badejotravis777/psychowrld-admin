@@ -580,14 +580,15 @@
     <div class="modal-body">
       <input type="hidden" id="product-id" />
       <div class="form-group">
-        <label>Product Image</label>
+        <label>Product Images (up to 5)</label>
         <div class="image-upload-area" onclick="document.getElementById('product-image').click()">
           <div id="image-preview">
             <div style="font-size:32px">📸</div>
-            <div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload image</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload images (select multiple)</div>
           </div>
-          <input type="file" id="product-image" accept="image/*" style="display:none" onchange="previewImage(this)" />
+          <input type="file" id="product-image" accept="image/*" multiple style="display:none" onchange="previewImages(this)" />
         </div>
+        <div id="existing-images" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -626,6 +627,14 @@
       <div class="form-group">
         <label>Description</label>
         <textarea id="product-description" rows="2" placeholder="Short product description"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Colors</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="color-input" placeholder="e.g. Black, Red, Navy Blue" style="flex:1" onkeydown="if(event.key==='Enter'){addColor();event.preventDefault()}" />
+          <button class="btn btn-ghost btn-sm" onclick="addColor()" type="button">Add</button>
+        </div>
+        <div id="colors-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
       <div class="form-group">
         <label>Sizes</label>
@@ -853,12 +862,34 @@ function openProductModal(product = null) {
     });
   }
 
-  // Reset image preview
-  document.getElementById('image-preview').innerHTML = product?.imageUrl
-    ? `<img src="${product.imageUrl}" style="max-height:120px;border-radius:8px" />`
-    : `<div style="font-size:32px">📸</div><div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload image</div>`;
+  // Reset colors
+  selectedColors = product?.colors || [];
+  renderColorTags();
+
+  // Reset images
+  imagesToRemove = [];
+  document.getElementById('image-preview').innerHTML = `<div style="font-size:32px">📸</div><div style="font-size:13px;color:var(--text2);margin-top:8px">Click to upload images</div>`;
+
+  // Show existing images
+  const existingEl = document.getElementById('existing-images');
+  if (product?.images?.length) {
+    existingEl.innerHTML = product.images.map((url, i) => `
+      <div style="position:relative">
+        <img src="${url}" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />
+        <span onclick="markImageForRemoval('${product.imagePublicIds?.[i] || ''}', this.parentElement)"
+          style="position:absolute;top:-6px;right:-6px;background:var(--accent);color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer">✕</span>
+      </div>
+    `).join('');
+  } else {
+    existingEl.innerHTML = '';
+  }
 
   document.getElementById('product-modal').classList.add('open');
+}
+
+function markImageForRemoval(publicId, el) {
+  if (publicId) imagesToRemove.push(publicId);
+  el.remove();
 }
 
 function closeProductModal() {
@@ -868,14 +899,44 @@ function closeProductModal() {
 
 function editProduct(product) { openProductModal(product); }
 
-function previewImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('image-preview').innerHTML = `<img src="${e.target.result}" style="max-height:150px;border-radius:8px" />`;
-  };
-  reader.readAsDataURL(file);
+let selectedColors = [];
+let imagesToRemove = [];
+
+function addColor() {
+  const input = document.getElementById('color-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedColors.includes(val)) {
+    selectedColors.push(val);
+    renderColorTags();
+  }
+  input.value = '';
+}
+
+function removeColor(color) {
+  selectedColors = selectedColors.filter(c => c !== color);
+  renderColorTags();
+}
+
+function renderColorTags() {
+  const el = document.getElementById('colors-tags');
+  el.innerHTML = selectedColors.map(c => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${c} <span style="cursor:pointer;color:var(--accent)" onclick="removeColor('${c}')">✕</span>
+    </div>
+  `).join('');
+}
+
+function previewImages(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const preview = document.getElementById('image-preview');
+  preview.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">` +
+    files.map(f => {
+      const url = URL.createObjectURL(f);
+      return `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" />`;
+    }).join('') +
+    `</div><div style="font-size:12px;color:var(--text2);margin-top:6px">${files.length} image(s) selected</div>`;
 }
 
 function toggleSize(el, size) { el.classList.toggle('selected'); }
@@ -883,7 +944,7 @@ function toggleSize(el, size) { el.classList.toggle('selected'); }
 async function saveProduct() {
   const id = document.getElementById('product-id').value;
   const sizes = [...document.querySelectorAll('.size-tag.selected')].map(t => t.textContent);
-  const imageFile = document.getElementById('product-image').files[0];
+  const imageFiles = document.getElementById('product-image').files;
 
   const formData = new FormData();
   formData.append('name', document.getElementById('product-name').value);
@@ -894,7 +955,9 @@ async function saveProduct() {
   formData.append('description', document.getElementById('product-description').value);
   formData.append('available', document.getElementById('product-available').value);
   formData.append('sizes', JSON.stringify(sizes));
-  if (imageFile) formData.append('image', imageFile);
+  formData.append('colors', JSON.stringify(selectedColors));
+  if (imagesToRemove.length) formData.append('removeImages', JSON.stringify(imagesToRemove));
+  for (const file of imageFiles) formData.append('images', file);
 
   const url = id ? `${API}/api/products/${id}` : `${API}/api/products`;
   const method = id ? 'PUT' : 'POST';
@@ -910,7 +973,8 @@ async function saveProduct() {
     closeProductModal();
     loadProducts();
   } else {
-    showToast('Failed to save product', 'error');
+    const err = await res.json();
+    showToast(err.error || 'Failed to save', 'error');
   }
 }
 

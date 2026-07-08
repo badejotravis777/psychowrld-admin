@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const Product = require("../models/product.model");
-const { upload, cloudinary } = require("../config/cloudinary");
+const { upload, uploadMultiple, cloudinary } = require("../config/cloudinary");
 
 // Get all products
 router.get("/", auth, async (req, res) => {
@@ -33,7 +33,7 @@ router.get("/categories", auth, async (req, res) => {
   }
 });
 
-// Rename a category (updates all products in that category)
+// Rename a category
 router.patch("/categories/rename", auth, async (req, res) => {
   try {
     const { oldName, newName } = req.body;
@@ -45,7 +45,7 @@ router.patch("/categories/rename", auth, async (req, res) => {
   }
 });
 
-// Rename a subcategory within a category
+// Rename a subcategory
 router.patch("/categories/rename-sub", auth, async (req, res) => {
   try {
     const { category, oldSub, newSub } = req.body;
@@ -57,7 +57,7 @@ router.patch("/categories/rename-sub", auth, async (req, res) => {
   }
 });
 
-// Delete entire category (deletes all products in it)
+// Delete entire category
 router.delete("/categories/:categoryName", auth, async (req, res) => {
   try {
     const result = await Product.deleteMany({ category: req.params.categoryName });
@@ -67,12 +67,12 @@ router.delete("/categories/:categoryName", auth, async (req, res) => {
   }
 });
 
-// Delete subcategory (deletes all products in that subcategory)
+// Delete subcategory
 router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) => {
   try {
     const result = await Product.deleteMany({
       category: req.params.categoryName,
-      subcategory: req.params.subName
+      subcategory: req.params.subName,
     });
     res.json({ deleted: result.deletedCount });
   } catch (err) {
@@ -80,10 +80,13 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
   }
 });
 
-// Add product with image
-router.post("/", auth, upload.single("image"), async (req, res) => {
+// Add product with multiple images
+router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
-    const { name, description, price, category, subcategory, emoji, sizes, available } = req.body;
+    const { name, description, price, category, subcategory, emoji, sizes, colors, available } = req.body;
+
+    const images = req.files ? req.files.map(f => f.path) : [];
+    const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
 
     const product = new Product({
       name,
@@ -93,9 +96,12 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
       subcategory,
       emoji: emoji || "🛍️",
       sizes: sizes ? JSON.parse(sizes) : [],
+      colors: colors ? JSON.parse(colors) : [],
       available: available !== "false",
-      imageUrl: req.file ? req.file.path : "",
-      imagePublicId: req.file ? req.file.filename : "",
+      images,
+      imagePublicIds,
+      imageUrl: images[0] || "",
+      imagePublicId: imagePublicIds[0] || "",
     });
 
     await product.save();
@@ -106,16 +112,31 @@ router.post("/", auth, upload.single("image"), async (req, res) => {
 });
 
 // Update product
-router.put("/:id", auth, upload.single("image"), async (req, res) => {
+router.put("/:id", auth, uploadMultiple, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, category, subcategory, emoji, sizes, available } = req.body;
+    const { name, description, price, category, subcategory, emoji, sizes, colors, available, removeImages } = req.body;
 
-    // If new image uploaded, delete old one from Cloudinary
-    if (req.file && product.imagePublicId) {
-      await cloudinary.uploader.destroy(product.imagePublicId);
+    // Delete removed images from Cloudinary
+    if (removeImages) {
+      const toRemove = JSON.parse(removeImages);
+      for (const publicId of toRemove) {
+        await cloudinary.uploader.destroy(publicId);
+      }
+      product.imagePublicIds = product.imagePublicIds.filter(id => !toRemove.includes(id));
+      product.images = product.images.filter((_, i) =>
+        !toRemove.includes(product.imagePublicIds[i])
+      );
+    }
+
+    // Add new images
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map(f => f.path);
+      const newPublicIds = req.files.map(f => f.filename);
+      product.images = [...(product.images || []), ...newImages];
+      product.imagePublicIds = [...(product.imagePublicIds || []), ...newPublicIds];
     }
 
     product.name = name || product.name;
@@ -125,11 +146,10 @@ router.put("/:id", auth, upload.single("image"), async (req, res) => {
     product.subcategory = subcategory || product.subcategory;
     product.emoji = emoji || product.emoji;
     product.sizes = sizes ? JSON.parse(sizes) : product.sizes;
+    product.colors = colors ? JSON.parse(colors) : product.colors;
     product.available = available !== undefined ? available !== "false" : product.available;
-    if (req.file) {
-      product.imageUrl = req.file.path;
-      product.imagePublicId = req.file.filename;
-    }
+    product.imageUrl = product.images[0] || "";
+    product.imagePublicId = product.imagePublicIds[0] || "";
 
     await product.save();
     res.json(product);
@@ -156,8 +176,8 @@ router.delete("/:id", auth, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
-    if (product.imagePublicId) {
-      await cloudinary.uploader.destroy(product.imagePublicId);
+    for (const publicId of (product.imagePublicIds || [])) {
+      await cloudinary.uploader.destroy(publicId);
     }
     await product.deleteOne();
     res.json({ success: true });
