@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const Product = require("../models/product.model");
 const { upload, uploadMultiple, cloudinary } = require("../config/cloudinary");
+const { syncProductToCatalog, removeFromCatalog, syncAllProducts } = require("../services/catalog.service");
 
 // Get all products
 router.get("/", auth, async (req, res) => {
@@ -84,7 +85,6 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
     const { name, description, price, category, subcategory, emoji, sizes, colors, available } = req.body;
-
     const images = req.files ? req.files.map(f => f.path) : [];
     const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
 
@@ -105,6 +105,7 @@ router.post("/", auth, uploadMultiple, async (req, res) => {
     });
 
     await product.save();
+    syncProductToCatalog(product).catch(console.error);
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -119,19 +120,15 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
 
     const { name, description, price, category, subcategory, emoji, sizes, colors, available, removeImages } = req.body;
 
-    // Delete removed images from Cloudinary
     if (removeImages) {
       const toRemove = JSON.parse(removeImages);
       for (const publicId of toRemove) {
         await cloudinary.uploader.destroy(publicId);
       }
       product.imagePublicIds = product.imagePublicIds.filter(id => !toRemove.includes(id));
-      product.images = product.images.filter((_, i) =>
-        !toRemove.includes(product.imagePublicIds[i])
-      );
+      product.images = product.images.filter((_, i) => !toRemove.includes(product.imagePublicIds[i]));
     }
 
-    // Add new images
     if (req.files && req.files.length > 0) {
       const newImages = req.files.map(f => f.path);
       const newPublicIds = req.files.map(f => f.filename);
@@ -152,6 +149,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     product.imagePublicId = product.imagePublicIds[0] || "";
 
     await product.save();
+    syncProductToCatalog(product).catch(console.error);
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -165,6 +163,7 @@ router.patch("/:id/toggle", auth, async (req, res) => {
     if (!product) return res.status(404).json({ error: "Product not found" });
     product.available = !product.available;
     await product.save();
+    syncProductToCatalog(product).catch(console.error);
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -179,8 +178,20 @@ router.delete("/:id", auth, async (req, res) => {
     for (const publicId of (product.imagePublicIds || [])) {
       await cloudinary.uploader.destroy(publicId);
     }
+    removeFromCatalog(product._id.toString()).catch(console.error);
     await product.deleteOne();
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Sync all products to catalog
+router.post("/sync-catalog", auth, async (req, res) => {
+  try {
+    const products = await Product.find({ available: true });
+    const result = await syncAllProducts(products);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

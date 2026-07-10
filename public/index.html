@@ -1259,16 +1259,16 @@ function showToast(msg, type = 'success') {
 }
 
 async function syncCatalog() {
-  showToast('Syncing products to WhatsApp catalog...', 'success');
-  const res = await fetch(`${API}/admin/sync-catalog`, {
+  showToast('Syncing to WhatsApp catalog...', 'success');
+  const res = await fetch(`${API}/api/products/sync-catalog`, {
     method: 'POST',
     headers: authHeaders()
   });
   const data = await res.json();
   if (res.ok) {
-    showToast(`✅ Synced ${data.success} products to catalog!`, 'success');
+    showToast(`✅ Synced ${data.success} products! ${data.failed} skipped (no image)`, 'success');
   } else {
-    showToast('Sync failed', 'error');
+    showToast('Sync failed — check logs', 'error');
   }
 }
 
