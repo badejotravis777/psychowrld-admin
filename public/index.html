@@ -651,12 +651,13 @@
       <div class="form-row">
         <div class="form-group">
           <label>Category</label>
-          <input type="text" id="product-category" placeholder="e.g. Football" list="category-list" />
+          <input type="text" id="product-category" placeholder="e.g. Football" list="category-list" oninput="updateSubcategoryList()" />
           <datalist id="category-list"></datalist>
         </div>
         <div class="form-group">
           <label>Subcategory</label>
-          <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" />
+          <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" list="subcategory-list" />
+          <datalist id="subcategory-list"></datalist>
         </div>
       </div>
       <div class="form-row">
@@ -847,6 +848,26 @@ function filterByCategory(cat) {
   renderProductsTable(filtered);
 }
 
+function updateSubcategoryList() {
+  const category = document.getElementById('product-category').value.trim().toLowerCase();
+  const dl = document.getElementById('subcategory-list');
+
+  let subs;
+  if (category) {
+    // Only show subcategories that already exist under this exact category
+    subs = [...new Set(
+      allProducts
+        .filter(p => p.category.trim().toLowerCase() === category)
+        .map(p => p.subcategory)
+    )].sort();
+  } else {
+    // Nothing typed yet — show every subcategory that exists anywhere
+    subs = [...new Set(allProducts.map(p => p.subcategory))].sort();
+  }
+
+  dl.innerHTML = subs.map(s => `<option value="${s}">`).join('');
+}
+
 function renderProductsTable(products) {
   const el = document.getElementById('products-table');
   if (!products.length) {
@@ -888,6 +909,7 @@ function openProductModal(product = null) {
   document.getElementById('product-price').value = product?.price || '';
   document.getElementById('product-category').value = product?.category || '';
   document.getElementById('product-subcategory').value = product?.subcategory || '';
+  updateSubcategoryList();
   document.getElementById('product-emoji').value = product?.emoji || '🛍️';
   document.getElementById('product-description').value = product?.description || '';
   document.getElementById('product-available').value = product ? String(product.available) : 'true';
