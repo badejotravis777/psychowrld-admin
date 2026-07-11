@@ -12,20 +12,21 @@ const syncProductToCatalog = async (product) => {
     }
 
     const payload = {
-      retailer_id: product._id.toString(),
-      name: product.name,
-      description: product.description || product.name,
-      price: product.price * 100,
-      currency: "NGN",
-      availability: product.available ? "in stock" : "out of stock",
-      condition: "new",
-      image_url: product.images[0],
-      url: `https://psychowrld-bot.onrender.com/product/${product._id}`,
-      brand: "Psychowrld",
-      category: product.category,
-      additional_image_urls: product.images.slice(1),
-    };
-
+        retailer_id: product._id.toString(),
+        name: product.name,
+        description: product.description || product.name,
+        price: product.price * 100,
+        currency: "NGN",
+        availability: product.available ? "in stock" : "out of stock",
+        condition: "new",
+        image_url: product.images[0],
+        url: `https://psychowrld-bot.onrender.com/product/${product._id}`,
+        brand: "Psychowrld",
+        category: product.category,
+        custom_label_0: product.subcategory,
+        additional_image_urls: product.images.slice(1),
+      };
+      
     const existingRes = await axios.get(
       `${BASE_URL}/${CATALOG_ID}/products?filter={"retailer_id":{"eq":"${product._id}"}}`,
       { headers: { Authorization: `Bearer ${getToken()}` } }
