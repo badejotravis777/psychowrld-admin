@@ -819,10 +819,15 @@ async function loadDashboard() {
 }
 
 // ── PRODUCTS ──
+// Placeholder products only exist to register an empty subcategory — hide them from the table
+function isPlaceholder(p) {
+  return p.name && p.name.includes('(placeholder)');
+}
+
 async function loadProducts() {
   const res = await fetch(`${API}/api/products`, { headers: authHeaders() });
   allProducts = await res.json();
-  renderProductsTable(allProducts);
+  renderProductsTable(allProducts.filter(p => !isPlaceholder(p)));
 
   // Populate category filter
   const cats = [...new Set(allProducts.map(p => p.category))].sort();
@@ -837,17 +842,19 @@ async function loadProducts() {
 
 function filterProducts(query) {
   const filtered = allProducts.filter(p =>
-    p.name.toLowerCase().includes(query.toLowerCase()) ||
-    p.category.toLowerCase().includes(query.toLowerCase())
+    !isPlaceholder(p) &&
+    (p.name.toLowerCase().includes(query.toLowerCase()) ||
+     p.category.toLowerCase().includes(query.toLowerCase()))
   );
   renderProductsTable(filtered);
 }
 
 function filterByCategory(cat) {
-  const filtered = cat ? allProducts.filter(p => p.category === cat) : allProducts;
+  const filtered = allProducts.filter(p =>
+    !isPlaceholder(p) && (!cat || p.category === cat)
+  );
   renderProductsTable(filtered);
 }
-
 function updateSubcategoryList() {
   const category = document.getElementById('product-category').value.trim().toLowerCase();
   const dl = document.getElementById('subcategory-list');
