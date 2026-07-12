@@ -544,6 +544,7 @@
           <div class="page-subtitle">Manage your catalog</div>
         </div>
         <div style="display:flex;gap:10px">
+          <button class="btn btn-danger" id="bulk-delete-btn" onclick="bulkDeleteProducts()" style="display:none">🗑️ Delete Selected (<span id="bulk-delete-count">0</span>)</button>
           <button class="btn btn-ghost" onclick="syncCatalog()">🔄 Sync Catalog</button>
           <button class="btn btn-primary" onclick="openProductModal()">+ Add Product</button>
         </div>
@@ -734,6 +735,51 @@
   </div>
 </div>
 
+<!-- BULK CATEGORY MODAL -->
+<div class="modal-overlay" id="bulk-category-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Add Categories</div>
+      <button class="modal-close" onclick="closeModal('bulk-category-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>One per line: Category Name | First Subcategory</label>
+        <textarea id="bulk-category-input" rows="8" placeholder="Football | Jerseys
+Basketball | Jerseys
+Streetwear | Hoodies"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('bulk-category-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBulkCategories()">Create All</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK SUBCATEGORY MODAL -->
+<div class="modal-overlay" id="bulk-subcategory-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title" id="bulk-subcategory-title">Bulk Add Subcategories</div>
+      <button class="modal-close" onclick="closeModal('bulk-subcategory-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="bulk-subcategory-category" />
+      <div class="form-group">
+        <label>One subcategory name per line</label>
+        <textarea id="bulk-subcategory-input" rows="8" placeholder="Jerseys
+Hoodies
+Shorts"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('bulk-subcategory-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBulkSubcategories()">Create All</button>
+    </div>
+  </div>
+</div>
+
 <!-- ORDER DETAIL MODAL -->
 <div class="modal-overlay" id="order-modal">
   <div class="modal" style="max-width:480px">
@@ -840,6 +886,86 @@ async function loadProducts() {
   dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
 }
 
+function openBulkCategoryModal() {
+  document.getElementById('bulk-category-input').value = '';
+  document.getElementById('bulk-category-modal').classList.add('open');
+}
+
+async function submitBulkCategories() {
+  const raw = document.getElementById('bulk-category-input').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  if (lines.length === 0) return showToast('Enter at least one category', 'error');
+
+  let created = 0;
+  for (const line of lines) {
+    const [catRaw, subRaw] = line.split('|');
+    const cat = catRaw?.trim();
+    const sub = subRaw?.trim();
+    if (!cat || !sub) continue;
+
+    const formData = new FormData();
+    formData.append('name', `${sub} (placeholder)`);
+    formData.append('price', '0');
+    formData.append('category', cat);
+    formData.append('subcategory', sub);
+    formData.append('emoji', '🛍️');
+    formData.append('sizes', JSON.stringify([]));
+    formData.append('available', 'false');
+
+    await fetch(`${API}/api/products`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    created++;
+  }
+
+  showToast(`${created} categor${created === 1 ? 'y' : 'ies'} created!`, 'success');
+  closeModal('bulk-category-modal');
+  loadCategories();
+  loadProducts();
+}
+
+function openBulkSubcategoryModal(category) {
+  document.getElementById('bulk-subcategory-category').value = category;
+  document.getElementById('bulk-subcategory-title').textContent = `Bulk Add Subcategories to "${category}"`;
+  document.getElementById('bulk-subcategory-input').value = '';
+  document.getElementById('bulk-subcategory-modal').classList.add('open');
+}
+
+async function submitBulkSubcategories() {
+  const category = document.getElementById('bulk-subcategory-category').value;
+  const raw = document.getElementById('bulk-subcategory-input').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  if (lines.length === 0) return showToast('Enter at least one subcategory', 'error');
+
+  let created = 0;
+  for (const sub of lines) {
+    const formData = new FormData();
+    formData.append('name', `${sub} (placeholder)`);
+    formData.append('price', '0');
+    formData.append('category', category);
+    formData.append('subcategory', sub);
+    formData.append('emoji', '🛍️');
+    formData.append('sizes', JSON.stringify([]));
+    formData.append('available', 'false');
+
+    await fetch(`${API}/api/products`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    created++;
+  }
+
+  showToast(`${created} subcategor${created === 1 ? 'y' : 'ies'} created!`, 'success');
+  closeModal('bulk-subcategory-modal');
+  loadCategories();
+  loadProducts();
+}
+
 function filterProducts(query) {
   const filtered = allProducts.filter(p =>
     !isPlaceholder(p) &&
@@ -875,6 +1001,8 @@ function updateSubcategoryList() {
   dl.innerHTML = subs.map(s => `<option value="${s}">`).join('');
 }
 
+let selectedProductIds = new Set();
+
 function renderProductsTable(products) {
   const el = document.getElementById('products-table');
   if (!products.length) {
@@ -884,11 +1012,13 @@ function renderProductsTable(products) {
   el.innerHTML = `
     <table>
       <thead><tr>
+        <th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)" /></th>
         <th>Image</th><th>Name</th><th>Category</th>
         <th>Price</th><th>Sizes</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>${products.map(p => `
         <tr>
+          <td><input type="checkbox" class="row-checkbox" data-id="${p._id}" ${selectedProductIds.has(p._id) ? 'checked' : ''} onchange="toggleProductSelection('${p._id}', this.checked)" /></td>
           <td>${p.imageUrl
             ? `<img src="${p.imageUrl}" class="product-img" />`
             : `<div class="product-img-placeholder">${p.emoji || '🛍️'}</div>`
@@ -906,8 +1036,50 @@ function renderProductsTable(products) {
         </tr>
       `).join('')}</tbody>
     </table>`;
+  updateBulkDeleteButton();
 }
 
+function toggleSelectAll(checked) {
+  document.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.checked = checked;
+    if (checked) selectedProductIds.add(cb.dataset.id);
+    else selectedProductIds.delete(cb.dataset.id);
+  });
+  updateBulkDeleteButton();
+}
+
+function toggleProductSelection(id, checked) {
+  if (checked) selectedProductIds.add(id);
+  else selectedProductIds.delete(id);
+  updateBulkDeleteButton();
+}
+
+function updateBulkDeleteButton() {
+  const btn = document.getElementById('bulk-delete-btn');
+  const count = document.getElementById('bulk-delete-count');
+  if (selectedProductIds.size > 0) {
+    btn.style.display = 'inline-flex';
+    count.textContent = selectedProductIds.size;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+async function bulkDeleteProducts() {
+  const ids = [...selectedProductIds];
+  if (ids.length === 0) return;
+  if (!confirm(`Delete ${ids.length} selected product(s)? This cannot be undone.`)) return;
+
+  showToast(`Deleting ${ids.length} product(s)...`, 'success');
+
+  for (const id of ids) {
+    await fetch(`${API}/api/products/${id}`, { method: 'DELETE', headers: authHeaders() });
+  }
+
+  selectedProductIds.clear();
+  showToast('Selected products deleted', 'success');
+  loadProducts();
+}
 function openProductModal(product = null) {
   document.getElementById('product-modal-title').textContent = product ? 'Edit Product' : 'Add Product';
   document.getElementById('product-id').value = product?._id || '';
@@ -1339,10 +1511,14 @@ function renderCategories() {
           </div>
         `).join('')}
         <button class="btn btn-ghost btn-sm" onclick="addSubcategory('${cat}')" style="border-style:dashed">+ Add Subcategory</button>
+        <button class="btn btn-ghost btn-sm" onclick="openBulkSubcategoryModal('${cat}')" style="border-style:dashed">+ Bulk Add Subcategories</button>
       </div>
     </div>
   `).join('') + `
-    <button class="btn btn-primary" onclick="addCategory()" style="margin-top:8px">+ Add New Category</button>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-primary" onclick="addCategory()">+ Add New Category</button>
+      <button class="btn btn-ghost" onclick="openBulkCategoryModal()">+ Bulk Add Categories</button>
+    </div>
   `;
 }
 
