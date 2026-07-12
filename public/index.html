@@ -877,7 +877,7 @@ function renderProductsTable(products) {
   el.innerHTML = `
     <table>
       <thead><tr>
-        <th>Image</th><th>Name</th><th>Category</th><th>Subcategory</th>
+        <th>Image</th><th>Name</th><th>Category</th>
         <th>Price</th><th>Sizes</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>${products.map(p => `
@@ -888,7 +888,6 @@ function renderProductsTable(products) {
           }</td>
           <td><strong>${p.name}</strong></td>
           <td>${p.category}</td>
-          <td style="color:var(--text2)">${p.subcategory}</td>
           <td>₦${p.price.toLocaleString()}</td>
           <td style="font-size:12px;color:var(--text2)">${(p.sizes || []).join(', ') || '—'}</td>
           <td><span class="badge badge-${p.available ? 'active' : 'inactive'}">${p.available ? 'Active' : 'Hidden'}</span></td>
