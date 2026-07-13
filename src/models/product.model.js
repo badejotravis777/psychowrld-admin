@@ -15,7 +15,15 @@ const productSchema = new mongoose.Schema(
       type: [
         {
           name: { type: String, required: true },
-          options: { type: [String], default: [] },
+          options: {
+            type: [
+              {
+                value: { type: String, required: true },
+                priceAdjustment: { type: Number, default: 0 },
+              },
+            ],
+            default: [],
+          },
         },
       ],
       default: [],

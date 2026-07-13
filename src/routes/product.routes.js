@@ -213,6 +213,38 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+
+
+// Duplicate a product
+router.post("/:id/duplicate", auth, async (req, res) => {
+  try {
+    const original = await Product.findById(req.params.id);
+    if (!original) return res.status(404).json({ error: "Product not found" });
+
+    const duplicate = new Product({
+      name: `${original.name} (Copy)`,
+      description: original.description,
+      price: original.price,
+      categories: original.categories,
+      subcategory: original.subcategory,
+      emoji: original.emoji,
+      sizes: original.sizes,
+      colors: original.colors,
+      customAttributes: original.customAttributes,
+      available: false,
+      images: original.images,
+      imagePublicIds: [],
+      imageUrl: original.imageUrl,
+      imagePublicId: "",
+    });
+
+    await duplicate.save();
+    res.json(duplicate);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Sync all products to catalog
 router.post("/sync-catalog", auth, async (req, res) => {
   try {

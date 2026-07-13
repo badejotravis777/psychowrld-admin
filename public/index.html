@@ -1190,14 +1190,19 @@ function renderCustomAttributes() {
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px">
         <input type="text" id="attr-option-input-${i}" placeholder="e.g. Fan, Player" style="flex:1" onkeydown="if(event.key==='Enter'){addAttributeOption(${i});event.preventDefault()}" />
+        <input type="number" id="attr-option-price-${i}" placeholder="+₦ price diff (optional)" style="width:180px" onkeydown="if(event.key==='Enter'){addAttributeOption(${i});event.preventDefault()}" />
         <button class="btn btn-ghost btn-sm" onclick="addAttributeOption(${i})" type="button">Add</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${attr.options.map(opt => `
+        ${attr.options.map((rawOpt) => {
+          const opt = typeof rawOpt === 'string' ? { value: rawOpt, priceAdjustment: 0 } : rawOpt;
+          const priceLabel = opt.priceAdjustment ? ` (+₦${opt.priceAdjustment.toLocaleString()})` : '';
+          return `
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
-            ${opt} <span style="cursor:pointer;color:var(--accent)" onclick="removeAttributeOption(${i}, '${opt}')">✕</span>
+            ${opt.value}${priceLabel} <span style="cursor:pointer;color:var(--accent)" onclick="removeAttributeOption(${i}, '${opt.value}')">✕</span>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   `).join('') + `<button class="btn btn-ghost btn-sm" onclick="addAttributeGroup()" type="button" style="border-style:dashed">+ Add Attribute Group</button>`;
@@ -1219,16 +1224,22 @@ function updateAttributeName(index, value) {
 
 function addAttributeOption(index) {
   const input = document.getElementById(`attr-option-input-${index}`);
+  const priceInput = document.getElementById(`attr-option-price-${index}`);
   const val = input.value.trim();
   if (!val) return;
-  if (!customAttributes[index].options.includes(val)) {
-    customAttributes[index].options.push(val);
+  const priceAdjustment = priceInput.value ? Number(priceInput.value) : 0;
+
+  const exists = customAttributes[index].options.some(o => (typeof o === 'string' ? o : o.value) === val);
+  if (!exists) {
+    customAttributes[index].options.push({ value: val, priceAdjustment });
     renderCustomAttributes();
   }
+  input.value = '';
+  priceInput.value = '';
 }
 
 function removeAttributeOption(groupIndex, value) {
-  customAttributes[groupIndex].options = customAttributes[groupIndex].options.filter(o => o !== value);
+  customAttributes[groupIndex].options = customAttributes[groupIndex].options.filter(o => (typeof o === 'string' ? o : o.value) !== value);
   renderCustomAttributes();
 }
 
@@ -1342,6 +1353,20 @@ async function deleteProduct(id) {
   await fetch(`${API}/api/products/${id}`, { method: 'DELETE', headers: authHeaders() });
   showToast('Product deleted', 'success');
   loadProducts();
+}
+
+async function duplicateProduct(id) {
+  showToast('Duplicating product...', 'success');
+  const res = await fetch(`${API}/api/products/${id}/duplicate`, {
+    method: 'POST',
+    headers: authHeaders()
+  });
+  if (res.ok) {
+    showToast('Product duplicated! It\'s hidden — edit and publish it when ready.', 'success');
+    loadProducts();
+  } else {
+    showToast('Failed to duplicate', 'error');
+  }
 }
 
 // ── ORDERS ──
@@ -1483,9 +1508,10 @@ function renderAgentsTable(agents) {
           <td><span class="badge badge-${a.active ? 'active' : 'inactive'}">${a.active ? 'Active' : 'Inactive'}</span></td>
           <td>${a.assignedOrders}</td>
           <td><div class="actions">
-            <button class="btn btn-ghost btn-sm" onclick='editAgent(${JSON.stringify(a)})'>✏️</button>
-            <button class="btn btn-ghost btn-sm" onclick="toggleAgent('${a._id}', ${a.active})">${a.active ? '🔴' : '🟢'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteAgent('${a._id}')">🗑️</button>
+            <button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="duplicateProduct('${p._id}')">📋</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleProduct('${p._id}', ${p.available})">${p.available ? '🔴' : '🟢'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p._id}')">🗑️</button>
           </div></td>
         </tr>
       `).join('')}</tbody>
