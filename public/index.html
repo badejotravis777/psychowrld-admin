@@ -807,6 +807,7 @@ const API = '';
 let token = localStorage.getItem('pw_token');
 let allProducts = [];
 let allAgents = [];
+let selectedProductIds = new Set();
 
 // ── AUTH ──
 async function doLogin() {
@@ -1541,10 +1542,9 @@ function renderAgentsTable(agents) {
           <td><span class="badge badge-${a.active ? 'active' : 'inactive'}">${a.active ? 'Active' : 'Inactive'}</span></td>
           <td>${a.assignedOrders}</td>
           <td><div class="actions">
-            <button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>✏️</button>
-            <button class="btn btn-ghost btn-sm" onclick="duplicateProduct('${p._id}')">📋</button>
-            <button class="btn btn-ghost btn-sm" onclick="toggleProduct('${p._id}', ${p.available})">${p.available ? '🔴' : '🟢'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p._id}')">🗑️</button>
+            <button class="btn btn-ghost btn-sm" onclick='editAgent(${JSON.stringify(a)})'>✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleAgent('${a._id}', ${a.active})">${a.active ? '🔴' : '🟢'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteAgent('${a._id}')">🗑️</button>
           </div></td>
         </tr>
       `).join('')}</tbody>
