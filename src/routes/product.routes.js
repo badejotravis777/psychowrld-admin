@@ -84,7 +84,7 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
 // Add product with multiple images
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
-    const { name, description, price, category, subcategory, emoji, sizes, colors, available } = req.body;
+    const { name, description, price, category, subcategory, emoji, sizes, colors, customAttributes, available } = req.body;
     const images = req.files ? req.files.map(f => f.path) : [];
     const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
 
@@ -97,6 +97,7 @@ router.post("/", auth, uploadMultiple, async (req, res) => {
       emoji: emoji || "🛍️",
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
+      customAttributes: customAttributes ? JSON.parse(customAttributes) : [],
       available: available !== "false",
       images,
       imagePublicIds,
@@ -118,7 +119,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, category, subcategory, emoji, sizes, colors, available, removeImages } = req.body;
+    const { name, description, price, category, subcategory, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
 
     if (removeImages) {
       const toRemove = JSON.parse(removeImages);
@@ -144,6 +145,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     product.emoji = emoji || product.emoji;
     product.sizes = sizes ? JSON.parse(sizes) : product.sizes;
     product.colors = colors ? JSON.parse(colors) : product.colors;
+    product.customAttributes = customAttributes ? JSON.parse(customAttributes) : product.customAttributes;
     product.available = available !== undefined ? available !== "false" : product.available;
     product.imageUrl = product.images[0] || "";
     product.imagePublicId = product.imagePublicIds[0] || "";

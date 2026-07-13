@@ -694,6 +694,10 @@
         </div>
         <div id="sizes-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
+      <div class="form-group">
+        <label>Custom Attributes (e.g. Fan vs Player Version — customer must choose one before adding to cart)</label>
+        <div id="custom-attributes-container"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeProductModal()">Cancel</button>
@@ -1097,8 +1101,13 @@ function openProductModal(product = null) {
   renderSizeTags();
 
   // Reset colors
-  selectedColors = product?.colors || [];
+// Reset colors
+selectedColors = product?.colors || [];
   renderColorTags();
+
+  // Reset custom attributes
+  customAttributes = product?.customAttributes ? JSON.parse(JSON.stringify(product.customAttributes)) : [];
+  renderCustomAttributes();
 
   // Reset images
   imagesToRemove = [];
@@ -1136,6 +1145,59 @@ function editProduct(product) { openProductModal(product); }
 let selectedColors = [];
 let selectedSizes = [];
 let imagesToRemove = [];
+let customAttributes = [];
+
+function renderCustomAttributes() {
+  const el = document.getElementById('custom-attributes-container');
+  el.innerHTML = customAttributes.map((attr, i) => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" placeholder="Attribute name (e.g. Version)" value="${attr.name}" oninput="updateAttributeName(${i}, this.value)" style="flex:1" />
+        <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="removeAttributeGroup(${i})" type="button">🗑️</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="attr-option-input-${i}" placeholder="e.g. Fan, Player" style="flex:1" onkeydown="if(event.key==='Enter'){addAttributeOption(${i});event.preventDefault()}" />
+        <button class="btn btn-ghost btn-sm" onclick="addAttributeOption(${i})" type="button">Add</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${attr.options.map(opt => `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+            ${opt} <span style="cursor:pointer;color:var(--accent)" onclick="removeAttributeOption(${i}, '${opt}')">✕</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('') + `<button class="btn btn-ghost btn-sm" onclick="addAttributeGroup()" type="button" style="border-style:dashed">+ Add Attribute Group</button>`;
+}
+
+function addAttributeGroup() {
+  customAttributes.push({ name: '', options: [] });
+  renderCustomAttributes();
+}
+
+function removeAttributeGroup(index) {
+  customAttributes.splice(index, 1);
+  renderCustomAttributes();
+}
+
+function updateAttributeName(index, value) {
+  customAttributes[index].name = value;
+}
+
+function addAttributeOption(index) {
+  const input = document.getElementById(`attr-option-input-${index}`);
+  const val = input.value.trim();
+  if (!val) return;
+  if (!customAttributes[index].options.includes(val)) {
+    customAttributes[index].options.push(val);
+    renderCustomAttributes();
+  }
+}
+
+function removeAttributeOption(groupIndex, value) {
+  customAttributes[groupIndex].options = customAttributes[groupIndex].options.filter(o => o !== value);
+  renderCustomAttributes();
+}
 
 function addSize() {
   const input = document.getElementById('size-input');
@@ -1213,6 +1275,7 @@ async function saveProduct() {
   formData.append('available', document.getElementById('product-available').value);
   formData.append('sizes', JSON.stringify(selectedSizes));
   formData.append('colors', JSON.stringify(selectedColors));
+  formData.append('customAttributes', JSON.stringify(customAttributes.filter(a => a.name.trim() && a.options.length > 0)));
   if (imagesToRemove.length) formData.append('removeImages', JSON.stringify(imagesToRemove));
   for (const file of imageFiles) formData.append('images', file);
 
