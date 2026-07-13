@@ -143,7 +143,7 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
 // Add product with multiple images
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
-    const { name, description, price, categories, subcategory, categorySubcategories, emoji, sizes, colors, customAttributes, available } = req.body;
+    const { name, description, price, categories, subcategory, categorySubcategories, badge, emoji, sizes, colors, customAttributes, available } = req.body;
     const images = req.files ? req.files.map(f => f.path) : [];
     const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
 
@@ -157,6 +157,7 @@ router.post("/", auth, uploadMultiple, async (req, res) => {
       categories: categories ? JSON.parse(categories) : [],
       subcategory: legacySubcategory,
       categorySubcategories: parsedCategorySubcategories,
+      badge: badge || "none",
       emoji: emoji || "🛍️",
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
@@ -182,7 +183,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, categories, subcategory, categorySubcategories, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
+    const { name, description, price, categories, subcategory, categorySubcategories, badge, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
 
     if (removeImages) {
       const toRemove = JSON.parse(removeImages);
@@ -212,6 +213,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     } else if (subcategory !== undefined) {
       product.subcategory = subcategory;
     }
+    product.badge = badge !== undefined ? badge : product.badge;
     product.emoji = emoji || product.emoji;
     product.sizes = sizes ? JSON.parse(sizes) : product.sizes;
     product.colors = colors ? JSON.parse(colors) : product.colors;
@@ -258,8 +260,6 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
-
-
 // Duplicate a product
 router.post("/:id/duplicate", auth, async (req, res) => {
   try {
@@ -272,6 +272,8 @@ router.post("/:id/duplicate", auth, async (req, res) => {
       price: original.price,
       categories: original.categories,
       subcategory: original.subcategory,
+      categorySubcategories: original.categorySubcategories,
+      badge: original.badge,
       emoji: original.emoji,
       sizes: original.sizes,
       colors: original.colors,

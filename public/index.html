@@ -300,6 +300,9 @@
   .badge-active { background: rgba(34,197,94,0.15); color: var(--success); }
   .badge-inactive { background: rgba(239,68,68,0.15); color: #ef4444; }
 
+  .badge-coming_soon { background: rgba(59,130,246,0.15); color: var(--info); }
+  .badge-restocked { background: rgba(34,197,94,0.15); color: var(--success); }
+
   .product-img {
     width: 44px;
     height: 44px;
@@ -559,6 +562,12 @@
             <select onchange="filterByCategory(this.value)" id="cat-filter">
               <option value="">All Categories</option>
             </select>
+            <select onchange="filterByBadge(this.value)" id="badge-filter">
+              <option value="">All Badges</option>
+              <option value="coming_soon">🔜 Coming Soon</option>
+              <option value="restocked">🎉 Restocked</option>
+              <option value="none">No Badge</option>
+            </select>
           </div>
         </div>
         <div id="products-table"></div>
@@ -674,6 +683,14 @@
             <option value="false">No</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label>Badge</label>
+        <select id="product-badge">
+          <option value="none">None</option>
+          <option value="coming_soon">🔜 Coming Soon</option>
+          <option value="restocked">🎉 Restocked</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Description</label>
@@ -988,6 +1005,13 @@ function filterByCategory(cat) {
   );
   renderProductsTable(filtered);
 }
+
+function filterByBadge(badge) {
+  const filtered = allProducts.filter(p =>
+    !isPlaceholder(p) && (!badge || (p.badge || 'none') === badge)
+  );
+  renderProductsTable(filtered);
+}
 function getProductSubcategoryForCategory(product, category) {
   if (product.categorySubcategories && product.categorySubcategories.length > 0) {
     const match = product.categorySubcategories.find(cs => cs.category === category);
@@ -1042,7 +1066,7 @@ function renderProductsTable(products) {
       <thead><tr>
         <th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this.checked)" /></th>
         <th>Image</th><th>Name</th><th>Category</th>
-        <th>Price</th><th>Sizes</th><th>Status</th><th>Actions</th>
+        <th>Price</th><th>Sizes</th><th>Badge</th><th>Status</th><th>Actions</th>
       </tr></thead>
       <tbody>${products.map(p => `
         <tr>
@@ -1055,6 +1079,7 @@ function renderProductsTable(products) {
           <td>${(p.categories || []).join(', ')}</td>
           <td>₦${p.price.toLocaleString()}</td>
           <td style="font-size:12px;color:var(--text2)">${(p.sizes || []).join(', ') || '—'}</td>
+          <td>${p.badge && p.badge !== 'none' ? `<span class="badge badge-${p.badge}">${p.badge === 'coming_soon' ? '🔜 Coming Soon' : '🎉 Restocked'}</span>` : '—'}</td>
           <td><span class="badge badge-${p.available ? 'active' : 'inactive'}">${p.available ? 'Active' : 'Hidden'}</span></td>
           <td><div class="actions">
             <button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>✏️</button>
@@ -1126,6 +1151,7 @@ renderCategorySubcategoryInputs();
   document.getElementById('product-emoji').value = product?.emoji || '🛍️';
   document.getElementById('product-description').value = product?.description || '';
   document.getElementById('product-available').value = product ? String(product.available) : 'true';
+  document.getElementById('product-badge').value = product?.badge || 'none';
 
   // Reset sizes
   selectedSizes = product?.sizes || [];
@@ -1351,6 +1377,7 @@ async function saveProduct() {
   formData.append('emoji', document.getElementById('product-emoji').value);
   formData.append('description', document.getElementById('product-description').value);
   formData.append('available', document.getElementById('product-available').value);
+  formData.append('badge', document.getElementById('product-badge').value);
   formData.append('sizes', JSON.stringify(selectedSizes));
   formData.append('colors', JSON.stringify(selectedColors));
   formData.append('customAttributes', JSON.stringify(customAttributes.filter(a => a.name.trim() && a.options.length > 0)));

@@ -8,6 +8,7 @@ const productSchema = new mongoose.Schema(
     categories: { type: [String], required: true, default: [] },
     subcategory: { type: String, default: "" },
     available: { type: Boolean, default: true },
+    badge: { type: String, enum: ["none", "coming_soon", "restocked"], default: "none" },
     emoji: { type: String, default: "🛍️" },
     sizes: { type: [String], default: [] },
     colors: { type: [String], default: [] },
