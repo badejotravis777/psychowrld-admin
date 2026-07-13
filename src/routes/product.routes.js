@@ -5,6 +5,17 @@ const Product = require("../models/product.model");
 const { upload, uploadMultiple, cloudinary } = require("../config/cloudinary");
 const { syncProductToCatalog, removeFromCatalog, syncAllProducts } = require("../services/catalog.service");
 
+// Get the subcategory that applies to a product for a specific category
+// Falls back to the legacy flat `subcategory` field for older products
+// that haven't been re-saved since multi-category support was added
+function getSubcategoryForCategory(product, category) {
+  if (product.categorySubcategories && product.categorySubcategories.length > 0) {
+    const match = product.categorySubcategories.find((cs) => cs.category === category);
+    if (match) return match.subcategory || "";
+  }
+  return product.subcategory || "";
+}
+
 // Get all products
 router.get("/", auth, async (req, res) => {
   try {
@@ -23,12 +34,20 @@ router.get("/", auth, async (req, res) => {
 // Get all categories with subcategories
 router.get("/categories", auth, async (req, res) => {
   try {
-    const categories = await Product.distinct("categories");
+    const products = await Product.find({});
     const result = {};
-    for (const cat of categories) {
-      result[cat] = await Product.distinct("subcategory", { categories: cat });
+    for (const p of products) {
+      for (const cat of p.categories || []) {
+        if (!result[cat]) result[cat] = new Set();
+        const sub = getSubcategoryForCategory(p, cat);
+        if (sub) result[cat].add(sub);
+      }
     }
-    res.json(result);
+    const finalResult = {};
+    for (const cat of Object.keys(result)) {
+      finalResult[cat] = [...result[cat]];
+    }
+    res.json(finalResult);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -55,8 +74,19 @@ router.patch("/categories/rename-sub", auth, async (req, res) => {
   try {
     const { category, oldSub, newSub } = req.body;
     if (!category || !oldSub || !newSub) return res.status(400).json({ error: "category, oldSub, newSub required" });
-    const result = await Product.updateMany({ categories: category, subcategory: oldSub }, { subcategory: newSub });
-    res.json({ updated: result.modifiedCount });
+
+    const result1 = await Product.updateMany(
+      { categories: category, subcategory: oldSub },
+      { subcategory: newSub }
+    );
+
+    const result2 = await Product.updateMany(
+      { categorySubcategories: { $elemMatch: { category, subcategory: oldSub } } },
+      { $set: { "categorySubcategories.$[elem].subcategory": newSub } },
+      { arrayFilters: [{ "elem.category": category, "elem.subcategory": oldSub }] }
+    );
+
+    res.json({ updated: result1.modifiedCount + result2.modifiedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -83,24 +113,28 @@ router.delete("/categories/:categoryName", auth, async (req, res) => {
 router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) => {
   try {
     const { categoryName, subName } = req.params;
+    const products = await Product.find({ categories: categoryName });
+    let deleted = 0;
 
-    // Belongs to other categories too — just drop this one category
-    await Product.updateMany(
-      {
-        categories: categoryName,
-        subcategory: subName,
-        $expr: { $gt: [{ $size: "$categories" }, 1] },
-      },
-      { $pull: { categories: categoryName } }
-    );
+    for (const p of products) {
+      const sub = getSubcategoryForCategory(p, categoryName);
+      if (sub !== subName) continue;
 
-    // This was the product's ONLY category — delete it entirely
-    const result = await Product.deleteMany({
-      categories: [categoryName],
-      subcategory: subName,
-    });
+      if (p.categories.length > 1) {
+        p.categories = p.categories.filter((c) => c !== categoryName);
+        p.categorySubcategories = (p.categorySubcategories || []).filter((cs) => cs.category !== categoryName);
+        await p.save();
+      } else {
+        for (const publicId of (p.imagePublicIds || [])) {
+          await cloudinary.uploader.destroy(publicId);
+        }
+        removeFromCatalog(p._id.toString()).catch(console.error);
+        await p.deleteOne();
+        deleted++;
+      }
+    }
 
-    res.json({ deleted: result.deletedCount });
+    res.json({ deleted });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -109,16 +143,20 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
 // Add product with multiple images
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
-    const { name, description, price, categories, subcategory, emoji, sizes, colors, customAttributes, available } = req.body;
+    const { name, description, price, categories, subcategory, categorySubcategories, emoji, sizes, colors, customAttributes, available } = req.body;
     const images = req.files ? req.files.map(f => f.path) : [];
     const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
+
+    const parsedCategorySubcategories = categorySubcategories ? JSON.parse(categorySubcategories) : [];
+    const legacySubcategory = parsedCategorySubcategories[0]?.subcategory || subcategory || "";
 
     const product = new Product({
       name,
       description,
       price: Number(price),
       categories: categories ? JSON.parse(categories) : [],
-      subcategory,
+      subcategory: legacySubcategory,
+      categorySubcategories: parsedCategorySubcategories,
       emoji: emoji || "🛍️",
       sizes: sizes ? JSON.parse(sizes) : [],
       colors: colors ? JSON.parse(colors) : [],
@@ -144,7 +182,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, categories, subcategory, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
+    const { name, description, price, categories, subcategory, categorySubcategories, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
 
     if (removeImages) {
       const toRemove = JSON.parse(removeImages);
@@ -166,7 +204,14 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     product.description = description ?? product.description;
     product.price = price ? Number(price) : product.price;
     product.categories = categories ? JSON.parse(categories) : product.categories;
-    product.subcategory = subcategory ?? product.subcategory;
+
+    if (categorySubcategories !== undefined) {
+      const parsed = JSON.parse(categorySubcategories);
+      product.categorySubcategories = parsed;
+      product.subcategory = parsed[0]?.subcategory || "";
+    } else if (subcategory !== undefined) {
+      product.subcategory = subcategory;
+    }
     product.emoji = emoji || product.emoji;
     product.sizes = sizes ? JSON.parse(sizes) : product.sizes;
     product.colors = colors ? JSON.parse(colors) : product.colors;

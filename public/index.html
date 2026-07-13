@@ -652,16 +652,15 @@
       <div class="form-group">
         <label>Categories (product will show under each one)</label>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input type="text" id="category-input" placeholder="e.g. Football" list="category-list" style="flex:1" oninput="updateSubcategoryList()" onkeydown="if(event.key==='Enter'){addCategoryTag();event.preventDefault()}" />
+          <input type="text" id="category-input" placeholder="e.g. Football" list="category-list" style="flex:1" onkeydown="if(event.key==='Enter'){addCategoryTag();event.preventDefault()}" />
           <datalist id="category-list"></datalist>
           <button class="btn btn-ghost btn-sm" onclick="addCategoryTag()" type="button">Add</button>
         </div>
         <div id="categories-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
       <div class="form-group">
-        <label>Subcategory</label>
-        <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" list="subcategory-list" />
-        <datalist id="subcategory-list"></datalist>
+        <label>Subcategory per Category</label>
+        <div id="category-subcategory-container" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -988,27 +987,48 @@ function filterByCategory(cat) {
   );
   renderProductsTable(filtered);
 }
-function updateSubcategoryList() {
-  const dl = document.getElementById('subcategory-list');
-  const cats = selectedCategories.map(c => c.toLowerCase());
-
-  let subs;
-  if (cats.length > 0) {
-    // Only show subcategories that already exist under the selected categories
-    subs = [...new Set(
-      allProducts
-        .filter(p => (p.categories || []).some(c => cats.includes(c.trim().toLowerCase())))
-        .map(p => p.subcategory)
-    )].sort();
-  } else {
-    // Nothing selected yet — show every subcategory that exists anywhere
-    subs = [...new Set(allProducts.map(p => p.subcategory))].sort();
+function getProductSubcategoryForCategory(product, category) {
+  if (product.categorySubcategories && product.categorySubcategories.length > 0) {
+    const match = product.categorySubcategories.find(cs => cs.category === category);
+    if (match) return match.subcategory || '';
   }
-
-  dl.innerHTML = subs.map(s => `<option value="${s}">`).join('');
+  return product.subcategory || '';
 }
 
-let selectedProductIds = new Set();
+function getSubcategorySuggestions(category) {
+  const catLower = category.trim().toLowerCase();
+  return [...new Set(
+    allProducts
+      .filter(p => (p.categories || []).some(c => c.trim().toLowerCase() === catLower))
+      .map(p => getProductSubcategoryForCategory(p, category))
+      .filter(Boolean)
+  )].sort();
+}
+
+function renderCategorySubcategoryInputs() {
+  const el = document.getElementById('category-subcategory-container');
+
+  if (selectedCategories.length === 0) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text2)">Add a category above first.</div>`;
+    return;
+  }
+
+  el.innerHTML = selectedCategories.map((cat, i) => {
+    const safeId = `cat-sub-${i}`;
+    const suggestions = getSubcategorySuggestions(cat);
+    return `
+      <div>
+        <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">${cat}</label>
+        <input type="text" id="${safeId}" placeholder="e.g. Jerseys (optional)" list="${safeId}-list"
+          value="${categorySubcategoryMap[cat] || ''}"
+          oninput="categorySubcategoryMap['${cat}'] = this.value" />
+        <datalist id="${safeId}-list">
+          ${suggestions.map(s => `<option value="${s}">`).join('')}
+        </datalist>
+      </div>
+    `;
+  }).join('');
+}
 
 function renderProductsTable(products) {
   const el = document.getElementById('products-table');
@@ -1093,10 +1113,15 @@ function openProductModal(product = null) {
   document.getElementById('product-name').value = product?.name || '';
   document.getElementById('product-price').value = product?.price || '';
   selectedCategories = product?.categories || [];
-  renderCategoryTags();
-  document.getElementById('category-input').value = '';
-  document.getElementById('product-subcategory').value = product?.subcategory || '';
-  updateSubcategoryList();
+
+categorySubcategoryMap = {};
+selectedCategories.forEach((cat) => {
+  categorySubcategoryMap[cat] = getProductSubcategoryForCategory(product || {}, cat);
+});
+
+renderCategoryTags();
+document.getElementById('category-input').value = '';
+renderCategorySubcategoryInputs();
   document.getElementById('product-emoji').value = product?.emoji || '🛍️';
   document.getElementById('product-description').value = product?.description || '';
   document.getElementById('product-available').value = product ? String(product.available) : 'true';
@@ -1148,6 +1173,7 @@ function closeProductModal() {
 function editProduct(product) { openProductModal(product); }
 
 let selectedCategories = [];
+let categorySubcategoryMap = {};
 let selectedColors = [];
 let selectedSizes = [];
 let imagesToRemove = [];
@@ -1159,16 +1185,18 @@ function addCategoryTag() {
   if (!val) return;
   if (!selectedCategories.includes(val)) {
     selectedCategories.push(val);
+    if (!(val in categorySubcategoryMap)) categorySubcategoryMap[val] = '';
     renderCategoryTags();
-    updateSubcategoryList();
+    renderCategorySubcategoryInputs();
   }
   input.value = '';
 }
 
 function removeCategoryTag(cat) {
   selectedCategories = selectedCategories.filter(c => c !== cat);
+  delete categorySubcategoryMap[cat];
   renderCategoryTags();
-  updateSubcategoryList();
+  renderCategorySubcategoryInputs();
 }
 
 function renderCategoryTags() {
@@ -1309,11 +1337,16 @@ async function saveProduct() {
   const id = document.getElementById('product-id').value;
   const imageFiles = document.getElementById('product-image').files;
 
+  const categorySubcategoriesArray = selectedCategories.map(cat => ({
+    category: cat,
+    subcategory: (categorySubcategoryMap[cat] || '').trim(),
+  }));
+
   const formData = new FormData();
   formData.append('name', document.getElementById('product-name').value);
   formData.append('price', document.getElementById('product-price').value);
   formData.append('categories', JSON.stringify(selectedCategories));
-  formData.append('subcategory', document.getElementById('product-subcategory').value);
+  formData.append('categorySubcategories', JSON.stringify(categorySubcategoriesArray));
   formData.append('emoji', document.getElementById('product-emoji').value);
   formData.append('description', document.getElementById('product-description').value);
   formData.append('available', document.getElementById('product-available').value);
