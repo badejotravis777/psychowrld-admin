@@ -52,7 +52,7 @@ const syncProductToCatalog = async (product) => {
         additional_image_urls: product.images.slice(1),
         url: `https://psychowrld-bot.onrender.com/product/${product._id}`,
         brand: "Psychowrld",
-        category: product.category,
+        category: (product.categories && product.categories[0]) || "",
       };
 
       await axios.post(`${BASE_URL}/${CATALOG_ID}/products`, createPayload, {

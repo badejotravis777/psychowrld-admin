@@ -10,10 +10,10 @@ router.get("/", auth, async (req, res) => {
   try {
     const { category, subcategory, available } = req.query;
     const filter = {};
-    if (category) filter.category = category;
+    if (category) filter.categories = category;
     if (subcategory) filter.subcategory = subcategory;
     if (available !== undefined) filter.available = available === "true";
-    const products = await Product.find(filter).sort({ category: 1, subcategory: 1, name: 1 });
+    const products = await Product.find(filter).sort({ categories: 1, subcategory: 1, name: 1 });
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -23,10 +23,10 @@ router.get("/", auth, async (req, res) => {
 // Get all categories with subcategories
 router.get("/categories", auth, async (req, res) => {
   try {
-    const categories = await Product.distinct("category");
+    const categories = await Product.distinct("categories");
     const result = {};
     for (const cat of categories) {
-      result[cat] = await Product.distinct("subcategory", { category: cat });
+      result[cat] = await Product.distinct("subcategory", { categories: cat });
     }
     res.json(result);
   } catch (err) {
@@ -39,7 +39,11 @@ router.patch("/categories/rename", auth, async (req, res) => {
   try {
     const { oldName, newName } = req.body;
     if (!oldName || !newName) return res.status(400).json({ error: "oldName and newName required" });
-    const result = await Product.updateMany({ category: oldName }, { category: newName });
+    const result = await Product.updateMany(
+      { categories: oldName },
+      { $set: { "categories.$[elem]": newName } },
+      { arrayFilters: [{ elem: oldName }] }
+    );
     res.json({ updated: result.modifiedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -51,7 +55,7 @@ router.patch("/categories/rename-sub", auth, async (req, res) => {
   try {
     const { category, oldSub, newSub } = req.body;
     if (!category || !oldSub || !newSub) return res.status(400).json({ error: "category, oldSub, newSub required" });
-    const result = await Product.updateMany({ category, subcategory: oldSub }, { subcategory: newSub });
+    const result = await Product.updateMany({ categories: category, subcategory: oldSub }, { subcategory: newSub });
     res.json({ updated: result.modifiedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -61,7 +65,14 @@ router.patch("/categories/rename-sub", auth, async (req, res) => {
 // Delete entire category
 router.delete("/categories/:categoryName", auth, async (req, res) => {
   try {
-    const result = await Product.deleteMany({ category: req.params.categoryName });
+    const categoryName = req.params.categoryName;
+
+    await Product.updateMany(
+      { categories: categoryName },
+      { $pull: { categories: categoryName } }
+    );
+
+    const result = await Product.deleteMany({ categories: { $size: 0 } });
     res.json({ deleted: result.deletedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -71,10 +82,24 @@ router.delete("/categories/:categoryName", auth, async (req, res) => {
 // Delete subcategory
 router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) => {
   try {
+    const { categoryName, subName } = req.params;
+
+    // Belongs to other categories too — just drop this one category
+    await Product.updateMany(
+      {
+        categories: categoryName,
+        subcategory: subName,
+        $expr: { $gt: [{ $size: "$categories" }, 1] },
+      },
+      { $pull: { categories: categoryName } }
+    );
+
+    // This was the product's ONLY category — delete it entirely
     const result = await Product.deleteMany({
-      category: req.params.categoryName,
-      subcategory: req.params.subName,
+      categories: [categoryName],
+      subcategory: subName,
     });
+
     res.json({ deleted: result.deletedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -84,7 +109,7 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
 // Add product with multiple images
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {
-    const { name, description, price, category, subcategory, emoji, sizes, colors, customAttributes, available } = req.body;
+    const { name, description, price, categories, subcategory, emoji, sizes, colors, customAttributes, available } = req.body;
     const images = req.files ? req.files.map(f => f.path) : [];
     const imagePublicIds = req.files ? req.files.map(f => f.filename) : [];
 
@@ -92,7 +117,7 @@ router.post("/", auth, uploadMultiple, async (req, res) => {
       name,
       description,
       price: Number(price),
-      category,
+      categories: categories ? JSON.parse(categories) : [],
       subcategory,
       emoji: emoji || "🛍️",
       sizes: sizes ? JSON.parse(sizes) : [],
@@ -119,7 +144,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, category, subcategory, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
+    const { name, description, price, categories, subcategory, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
 
     if (removeImages) {
       const toRemove = JSON.parse(removeImages);
@@ -140,7 +165,7 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     product.name = name || product.name;
     product.description = description ?? product.description;
     product.price = price ? Number(price) : product.price;
-    product.category = category || product.category;
+    product.categories = categories ? JSON.parse(categories) : product.categories;
     product.subcategory = subcategory ?? product.subcategory;
     product.emoji = emoji || product.emoji;
     product.sizes = sizes ? JSON.parse(sizes) : product.sizes;

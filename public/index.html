@@ -649,17 +649,19 @@
           <input type="number" id="product-price" placeholder="e.g. 40000" />
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Category</label>
-          <input type="text" id="product-category" placeholder="e.g. Football" list="category-list" oninput="updateSubcategoryList()" />
+      <div class="form-group">
+        <label>Categories (product will show under each one)</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="category-input" placeholder="e.g. Football" list="category-list" style="flex:1" oninput="updateSubcategoryList()" onkeydown="if(event.key==='Enter'){addCategoryTag();event.preventDefault()}" />
           <datalist id="category-list"></datalist>
+          <button class="btn btn-ghost btn-sm" onclick="addCategoryTag()" type="button">Add</button>
         </div>
-        <div class="form-group">
-          <label>Subcategory</label>
-          <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" list="subcategory-list" />
-          <datalist id="subcategory-list"></datalist>
-        </div>
+        <div id="categories-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+      <div class="form-group">
+        <label>Subcategory</label>
+        <input type="text" id="product-subcategory" placeholder="e.g. Jerseys" list="subcategory-list" />
+        <datalist id="subcategory-list"></datalist>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -880,7 +882,7 @@ async function loadProducts() {
   renderProductsTable(allProducts.filter(p => !isPlaceholder(p)));
 
   // Populate category filter
-  const cats = [...new Set(allProducts.map(p => p.category))].sort();
+  const cats = [...new Set(allProducts.flatMap(p => p.categories || []))].sort();
   const catFilter = document.getElementById('cat-filter');
   catFilter.innerHTML = '<option value="">All Categories</option>' +
     cats.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -911,7 +913,7 @@ async function submitBulkCategories() {
     const formData = new FormData();
     formData.append('name', `${sub} (placeholder)`);
     formData.append('price', '0');
-    formData.append('category', cat);
+    formData.append('categories', JSON.stringify([cat]));
     formData.append('subcategory', sub);
     formData.append('emoji', '🛍️');
     formData.append('sizes', JSON.stringify([]));
@@ -950,7 +952,7 @@ async function submitBulkSubcategories() {
     const formData = new FormData();
     formData.append('name', `${sub} (placeholder)`);
     formData.append('price', '0');
-    formData.append('category', category);
+    formData.append('categories', JSON.stringify([category]));
     formData.append('subcategory', sub);
     formData.append('emoji', '🛍️');
     formData.append('sizes', JSON.stringify([]));
@@ -971,34 +973,35 @@ async function submitBulkSubcategories() {
 }
 
 function filterProducts(query) {
+  const q = query.toLowerCase();
   const filtered = allProducts.filter(p =>
     !isPlaceholder(p) &&
-    (p.name.toLowerCase().includes(query.toLowerCase()) ||
-     p.category.toLowerCase().includes(query.toLowerCase()))
+    (p.name.toLowerCase().includes(q) ||
+     (p.categories || []).some(c => c.toLowerCase().includes(q)))
   );
   renderProductsTable(filtered);
 }
 
 function filterByCategory(cat) {
   const filtered = allProducts.filter(p =>
-    !isPlaceholder(p) && (!cat || p.category === cat)
+    !isPlaceholder(p) && (!cat || (p.categories || []).includes(cat))
   );
   renderProductsTable(filtered);
 }
 function updateSubcategoryList() {
-  const category = document.getElementById('product-category').value.trim().toLowerCase();
   const dl = document.getElementById('subcategory-list');
+  const cats = selectedCategories.map(c => c.toLowerCase());
 
   let subs;
-  if (category) {
-    // Only show subcategories that already exist under this exact category
+  if (cats.length > 0) {
+    // Only show subcategories that already exist under the selected categories
     subs = [...new Set(
       allProducts
-        .filter(p => p.category.trim().toLowerCase() === category)
+        .filter(p => (p.categories || []).some(c => cats.includes(c.trim().toLowerCase())))
         .map(p => p.subcategory)
     )].sort();
   } else {
-    // Nothing typed yet — show every subcategory that exists anywhere
+    // Nothing selected yet — show every subcategory that exists anywhere
     subs = [...new Set(allProducts.map(p => p.subcategory))].sort();
   }
 
@@ -1028,7 +1031,7 @@ function renderProductsTable(products) {
             : `<div class="product-img-placeholder">${p.emoji || '🛍️'}</div>`
           }</td>
           <td><strong>${p.name}</strong></td>
-          <td>${p.category}</td>
+          <td>${(p.categories || []).join(', ')}</td>
           <td>₦${p.price.toLocaleString()}</td>
           <td style="font-size:12px;color:var(--text2)">${(p.sizes || []).join(', ') || '—'}</td>
           <td><span class="badge badge-${p.available ? 'active' : 'inactive'}">${p.available ? 'Active' : 'Hidden'}</span></td>
@@ -1089,7 +1092,9 @@ function openProductModal(product = null) {
   document.getElementById('product-id').value = product?._id || '';
   document.getElementById('product-name').value = product?.name || '';
   document.getElementById('product-price').value = product?.price || '';
-  document.getElementById('product-category').value = product?.category || '';
+  selectedCategories = product?.categories || [];
+  renderCategoryTags();
+  document.getElementById('category-input').value = '';
   document.getElementById('product-subcategory').value = product?.subcategory || '';
   updateSubcategoryList();
   document.getElementById('product-emoji').value = product?.emoji || '🛍️';
@@ -1142,10 +1147,38 @@ function closeProductModal() {
 
 function editProduct(product) { openProductModal(product); }
 
+let selectedCategories = [];
 let selectedColors = [];
 let selectedSizes = [];
 let imagesToRemove = [];
 let customAttributes = [];
+
+function addCategoryTag() {
+  const input = document.getElementById('category-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedCategories.includes(val)) {
+    selectedCategories.push(val);
+    renderCategoryTags();
+    updateSubcategoryList();
+  }
+  input.value = '';
+}
+
+function removeCategoryTag(cat) {
+  selectedCategories = selectedCategories.filter(c => c !== cat);
+  renderCategoryTags();
+  updateSubcategoryList();
+}
+
+function renderCategoryTags() {
+  const el = document.getElementById('categories-tags');
+  el.innerHTML = selectedCategories.map(c => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${c} <span style="cursor:pointer;color:var(--accent)" onclick="removeCategoryTag('${c}')">✕</span>
+    </div>
+  `).join('');
+}
 
 function renderCustomAttributes() {
   const el = document.getElementById('custom-attributes-container');
@@ -1268,7 +1301,7 @@ async function saveProduct() {
   const formData = new FormData();
   formData.append('name', document.getElementById('product-name').value);
   formData.append('price', document.getElementById('product-price').value);
-  formData.append('category', document.getElementById('product-category').value);
+  formData.append('categories', JSON.stringify(selectedCategories));
   formData.append('subcategory', document.getElementById('product-subcategory').value);
   formData.append('emoji', document.getElementById('product-emoji').value);
   formData.append('description', document.getElementById('product-description').value);
@@ -1595,7 +1628,7 @@ async function addCategory() {
   const formData = new FormData();
   formData.append('name', `${subName} (placeholder)`);
   formData.append('price', '0');
-  formData.append('category', name.trim());
+  formData.append('categories', JSON.stringify([name.trim()]));
   formData.append('subcategory', subName.trim());
   formData.append('emoji', '🛍️');
   formData.append('sizes', JSON.stringify([]));
@@ -1619,7 +1652,7 @@ async function addSubcategory(category) {
   const formData = new FormData();
   formData.append('name', `${name} (placeholder)`);
   formData.append('price', '0');
-  formData.append('category', category);
+  formData.append('categories', JSON.stringify([category]));
   formData.append('subcategory', name.trim());
   formData.append('emoji', '🛍️');
   formData.append('sizes', JSON.stringify([]));
@@ -1668,7 +1701,7 @@ async function renameSubcategory(category, oldSub) {
 
 async function deleteCategory(category) {
   const count = categoriesData[category]?.length || 0;
-  if (!confirm(`Delete "${category}" and ALL its products? This cannot be undone.`)) return;
+  if (!confirm(`Delete "${category}" from all its products (products only in this category will be removed entirely)? This cannot be undone.`)) return;
 
   await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}`, {
     method: 'DELETE',
@@ -1681,7 +1714,7 @@ async function deleteCategory(category) {
 }
 
 async function deleteSubcategory(category, sub) {
-  if (!confirm(`Delete "${sub}" and all its products?`)) return;
+  if (!confirm(`Delete "${sub}" from "${category}"? Products only in this category will be removed entirely.`)) return;
 
   await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}/sub/${encodeURIComponent(sub)}`, {
     method: 'DELETE',
