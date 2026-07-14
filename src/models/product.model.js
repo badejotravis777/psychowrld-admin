@@ -6,6 +6,7 @@ const productSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     price: { type: Number, required: true },
     categories: { type: [String], required: true, default: [] },
+    collections: { type: [String], default: [] },
     subcategory: { type: String, default: "" },
     available: { type: Boolean, default: true },
     badge: { type: String, enum: ["none", "coming_soon", "restocked"], default: "none" },

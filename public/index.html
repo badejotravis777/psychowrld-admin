@@ -671,6 +671,15 @@
         <label>Subcategory per Category</label>
         <div id="category-subcategory-container" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
+      <div class="form-group">
+        <label>Collections (optional — cross-category groupings like "World Cup Collection 26")</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="collection-input" placeholder="e.g. World Cup Collection 26" list="collection-list" style="flex:1" onkeydown="if(event.key==='Enter'){addCollectionTag();event.preventDefault()}" />
+          <datalist id="collection-list"></datalist>
+          <button class="btn btn-ghost btn-sm" onclick="addCollectionTag()" type="button">Add</button>
+        </div>
+        <div id="collections-tags" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label>Emoji</label>
@@ -905,10 +914,15 @@ async function loadProducts() {
     cats.map(c => `<option value="${c}">${c}</option>`).join('');
 
   // Populate datalist for modal
-  const dl = document.getElementById('category-list');
+ // Populate datalist for modal
+ const dl = document.getElementById('category-list');
   dl.innerHTML = cats.map(c => `<option value="${c}">`).join('');
-}
 
+  // Populate collections datalist from whatever collection names are already in use
+  const collectionsInUse = [...new Set(allProducts.flatMap(p => p.collections || []))].sort();
+  const collDl = document.getElementById('collection-list');
+  if (collDl) collDl.innerHTML = collectionsInUse.map(c => `<option value="${c}">`).join('');
+}
 function openBulkCategoryModal() {
   document.getElementById('bulk-category-input').value = '';
   document.getElementById('bulk-category-modal').classList.add('open');
@@ -1076,7 +1090,7 @@ function renderProductsTable(products) {
             : `<div class="product-img-placeholder">${p.emoji || '🛍️'}</div>`
           }</td>
           <td><strong>${p.name}</strong></td>
-          <td>${(p.categories || []).join(', ')}</td>
+          <td>${(p.categories || []).join(', ')}${(p.collections && p.collections.length) ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">✨ ${p.collections.join(', ')}</div>` : ''}</td>
           <td>₦${p.price.toLocaleString()}</td>
           <td style="font-size:12px;color:var(--text2)">${(p.sizes || []).join(', ') || '—'}</td>
           <td>${p.badge && p.badge !== 'none' ? `<span class="badge badge-${p.badge}">${p.badge === 'coming_soon' ? '🔜 Coming Soon' : '🎉 Restocked'}</span>` : '—'}</td>
@@ -1149,6 +1163,10 @@ selectedCategories.forEach((cat) => {
 renderCategoryTags();
 document.getElementById('category-input').value = '';
 renderCategorySubcategoryInputs();
+
+selectedCollections = product?.collections || [];
+renderCollectionTags();
+document.getElementById('collection-input').value = '';
   document.getElementById('product-emoji').value = product?.emoji || '🛍️';
   document.getElementById('product-description').value = product?.description || '';
   document.getElementById('product-available').value = product ? String(product.available) : 'true';
@@ -1202,6 +1220,7 @@ function editProduct(product) { openProductModal(product); }
 
 let selectedCategories = [];
 let categorySubcategoryMap = {};
+let selectedCollections = [];
 let selectedColors = [];
 let selectedSizes = [];
 let imagesToRemove = [];
@@ -1232,6 +1251,31 @@ function renderCategoryTags() {
   el.innerHTML = selectedCategories.map(c => `
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
       ${c} <span style="cursor:pointer;color:var(--accent)" onclick="removeCategoryTag('${c}')">✕</span>
+    </div>
+  `).join('');
+}
+
+function addCollectionTag() {
+  const input = document.getElementById('collection-input');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!selectedCollections.includes(val)) {
+    selectedCollections.push(val);
+    renderCollectionTags();
+  }
+  input.value = '';
+}
+
+function removeCollectionTag(name) {
+  selectedCollections = selectedCollections.filter(c => c !== name);
+  renderCollectionTags();
+}
+
+function renderCollectionTags() {
+  const el = document.getElementById('collections-tags');
+  el.innerHTML = selectedCollections.map(c => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:6px;font-size:13px">
+      ${c} <span style="cursor:pointer;color:var(--accent)" onclick="removeCollectionTag('${c}')">✕</span>
     </div>
   `).join('');
 }
@@ -1375,6 +1419,7 @@ async function saveProduct() {
   formData.append('price', document.getElementById('product-price').value);
   formData.append('categories', JSON.stringify(selectedCategories));
   formData.append('categorySubcategories', JSON.stringify(categorySubcategoriesArray));
+  formData.append('collections', JSON.stringify(selectedCollections));
   formData.append('emoji', document.getElementById('product-emoji').value);
   formData.append('description', document.getElementById('product-description').value);
   formData.append('available', document.getElementById('product-available').value);
