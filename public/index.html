@@ -1680,6 +1680,8 @@ function renderCategories() {
           <span style="color:var(--text2);font-size:12px">${categoriesData[cat].length} subcategories</span>
         </div>
         <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="toggleCategory('${cat}', false)">🔴 Hide</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleCategory('${cat}', true)">🟢 Show</button>
           <button class="btn btn-ghost btn-sm" onclick="renameCategory('${cat}')">✏️ Rename</button>
           <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCategory('${cat}')">🗑️ Delete</button>
         </div>
@@ -1688,6 +1690,8 @@ function renderCategories() {
         ${categoriesData[cat].map(sub => `
           <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:10px">
             <span style="font-size:13px">${sub}</span>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="toggleSubcategory('${cat}','${sub}',false)">🔴</button>
+            <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="toggleSubcategory('${cat}','${sub}',true)">🟢</button>
             <button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="renameSubcategory('${cat}','${sub}')">✏️</button>
             <button class="btn btn-ghost btn-sm" style="padding:2px 6px;color:#ef4444" onclick="deleteSubcategory('${cat}','${sub}')">🗑️</button>
           </div>
@@ -1707,12 +1711,11 @@ function renderCategories() {
 async function addCategory() {
   const name = prompt('Enter new category name:');
   if (!name?.trim()) return;
-  const subName = prompt(`Enter first subcategory for "${name}":`);
-  if (!subName?.trim()) return;
+  const subName = prompt(`Enter first subcategory for "${name}" (optional — press Cancel to skip):`);
 
   // Create a placeholder product to establish the category
   const formData = new FormData();
-  formData.append('name', `${subName} (placeholder)`);
+  formData.append('name', subName?.trim() ? `${subName.trim()} (placeholder)` : `${name.trim()} (placeholder)`);
   formData.append('price', '0');
   formData.append('categories', JSON.stringify([name.trim()]));
   formData.append('subcategory', subName.trim());
@@ -1728,6 +1731,26 @@ async function addCategory() {
 
   showToast(`Category "${name}" created!`, 'success');
   loadCategories();
+  loadProducts();
+}
+
+async function toggleCategory(category, available) {
+  await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}/toggle`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ available })
+  });
+  showToast(`Category "${category}" ${available ? 'activated ✅' : 'hidden 🔴'}`, 'success');
+  loadProducts();
+}
+
+async function toggleSubcategory(category, sub, available) {
+  await fetch(`${API}/api/products/categories/${encodeURIComponent(category)}/sub/${encodeURIComponent(sub)}/toggle`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ available })
+  });
+  showToast(`"${sub}" ${available ? 'activated ✅' : 'hidden 🔴'}`, 'success');
   loadProducts();
 }
 

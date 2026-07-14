@@ -303,4 +303,45 @@ router.post("/sync-catalog", auth, async (req, res) => {
   }
 });
 
+// Toggle entire category active/inactive
+router.patch("/categories/:categoryName/toggle", auth, async (req, res) => {
+  try {
+    const { categoryName } = req.params;
+    const { available } = req.body;
+    const products = await Product.find({ categories: categoryName });
+    let updated = 0;
+    for (const p of products) {
+      p.available = available;
+      await p.save();
+      updated++;
+    }
+    res.json({ updated, available });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle a subcategory active/inactive
+router.patch("/categories/:categoryName/sub/:subName/toggle", auth, async (req, res) => {
+  try {
+    const { categoryName, subName } = req.params;
+    const { available } = req.body;
+    const products = await Product.find({ categories: categoryName });
+    let updated = 0;
+    for (const p of products) {
+      const sub = getSubcategoryForCategory(p, categoryName);
+      if (sub === subName) {
+        p.available = available;
+        await p.save();
+        updated++;
+      }
+    }
+    res.json({ updated, available });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+
 module.exports = router;
