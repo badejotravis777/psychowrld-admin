@@ -1083,8 +1083,9 @@ function renderProductsTable(products) {
           <td><span class="badge badge-${p.available ? 'active' : 'inactive'}">${p.available ? 'Active' : 'Hidden'}</span></td>
           <td><div class="actions">
             <button class="btn btn-ghost btn-sm" onclick='editProduct(${JSON.stringify(p)})'>✏️</button>
-            <button class="btn btn-ghost btn-sm" onclick="toggleProduct('${p._id}', ${p.available})">${p.available ? '🔴' : '🟢'}</button>
-            <button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p._id}')">🗑️</button>
+<button class="btn btn-ghost btn-sm" onclick="duplicateProduct('${p._id}')" title="Duplicate">📋</button>
+<button class="btn btn-ghost btn-sm" onclick="toggleProduct('${p._id}', ${p.available})">${p.available ? '🔴' : '🟢'}</button>
+<button class="btn btn-ghost btn-sm" onclick="deleteProduct('${p._id}')">🗑️</button>
           </div></td>
         </tr>
       `).join('')}</tbody>
