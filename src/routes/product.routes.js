@@ -140,6 +140,85 @@ router.delete("/categories/:categoryName/sub/:subName", auth, async (req, res) =
   }
 });
 
+// ── COLLECTIONS ──
+
+// Get all collections with product counts (placeholders don't count toward the number shown)
+router.get("/collections", auth, async (req, res) => {
+  try {
+    const products = await Product.find({});
+    const result = {};
+    for (const p of products) {
+      for (const col of p.collections || []) {
+        if (!result[col]) result[col] = 0;
+        if (!p.name.includes("(placeholder)")) result[col]++;
+      }
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rename a collection
+router.patch("/collections/rename", auth, async (req, res) => {
+  try {
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName) return res.status(400).json({ error: "oldName and newName required" });
+    const result = await Product.updateMany(
+      { collections: oldName },
+      { $set: { "collections.$[elem]": newName } },
+      { arrayFilters: [{ elem: oldName }] }
+    );
+    res.json({ updated: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle every product in a collection active/inactive
+router.patch("/collections/:name/toggle", auth, async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { available } = req.body;
+    const products = await Product.find({ collections: name });
+    let updated = 0;
+    for (const p of products) {
+      p.available = available;
+      await p.save();
+      updated++;
+    }
+    res.json({ updated, available });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a collection (removes the tag from every product; real products are untouched otherwise)
+router.delete("/collections/:name", auth, async (req, res) => {
+  try {
+    const name = req.params.name;
+    await Product.updateMany({ collections: name }, { $pull: { collections: name } });
+
+    // Clean up any placeholder product that only existed to register this collection
+    const leftover = await Product.find({
+      name: { $regex: /\(placeholder\)$/ },
+      categories: { $size: 0 },
+      collections: { $size: 0 },
+    });
+    let deleted = 0;
+    for (const p of leftover) {
+      await p.deleteOne();
+      deleted++;
+    }
+
+    res.json({ deleted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add product with multiple images
+
 // Add product with multiple images
 router.post("/", auth, uploadMultiple, async (req, res) => {
   try {

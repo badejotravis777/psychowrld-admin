@@ -503,6 +503,9 @@
       <button class="nav-item" onclick="showPage('categories')">
         <span class="icon">📂</span> Categories
       </button>
+      <button class="nav-item" onclick="showPage('collections')">
+        <span class="icon">✨</span> Collections
+      </button>
       <button class="nav-item" onclick="showPage('orders')">
         <span class="icon">📦</span> Orders
       </button>
@@ -586,6 +589,17 @@
         </div>
       </div>
       <div id="categories-container"></div>
+    </div>
+
+    <!-- COLLECTIONS -->
+    <div id="page-collections" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Collections</div>
+          <div class="page-subtitle">Cross-category groupings — create and manage independently, just like Categories</div>
+        </div>
+      </div>
+      <div id="collections-page-container"></div>
     </div>
 
     <!-- ORDERS -->
@@ -871,6 +885,30 @@ Shorts"></textarea>
   </div>
 </div>
 
+<!-- BULK COLLECTIONS MODAL -->
+<div class="modal-overlay" id="bulk-collections-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Bulk Add Collections</div>
+      <button class="modal-close" onclick="closeModal('bulk-collections-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>One collection name per line</label>
+        <textarea id="bulk-collections-input" rows="8" placeholder="World Cup Collection 26
+Psychowrld NSFW Collection
+Ramadan Collection"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('bulk-collections-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBulkCollectionsModal()">Create All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER DETAIL MODAL -->
+
 <!-- ORDER DETAIL MODAL -->
 <div class="modal-overlay" id="order-modal">
   <div class="modal" style="max-width:480px">
@@ -940,6 +978,7 @@ function showPage(page) {
   event.currentTarget.classList.add('active');
   if (page === 'orders') loadOrders('');
   if (page === 'categories') loadCategories();
+  if (page === 'collections') loadCollectionsPage();
   if (page === 'delivery') loadDeliverySettings();
 }
 
@@ -2010,6 +2049,146 @@ async function deleteSubcategory(category, sub) {
 
   showToast(`Subcategory deleted`, 'success');
   loadCategories();
+  loadProducts();
+}
+
+// ── COLLECTIONS PAGE (standalone, admin-managed — same pattern as Categories) ──
+let collectionsPageData = {};
+
+async function loadCollectionsPage() {
+  const res = await fetch(`${API}/api/products/collections`, { headers: authHeaders() });
+  collectionsPageData = await res.json();
+  renderCollectionsPage();
+}
+
+function renderCollectionsPage() {
+  const el = document.getElementById('collections-page-container');
+  const names = Object.keys(collectionsPageData).sort();
+
+  const addButtons = `
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-primary" onclick="addNewCollection()">+ Add New Collection</button>
+      <button class="btn btn-ghost" onclick="openBulkCollectionsModal()">+ Bulk Add Collections</button>
+    </div>`;
+
+  if (!names.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">✨</div><p>No collections yet.</p></div>` + addButtons;
+    return;
+  }
+
+  el.innerHTML = names.map(name => `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <strong style="font-size:15px">✨ ${name}</strong>
+          <span style="color:var(--text2);font-size:12px">${collectionsPageData[name]} product${collectionsPageData[name] === 1 ? '' : 's'}</span>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost btn-sm" onclick="toggleCollectionActive('${name}', false)">🔴 Hide All</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleCollectionActive('${name}', true)">🟢 Show All</button>
+          <button class="btn btn-ghost btn-sm" onclick="renameCollectionAdmin('${name}')">✏️ Rename</button>
+          <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="deleteCollectionAdmin('${name}')">🗑️ Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('') + addButtons;
+}
+
+async function addNewCollection() {
+  const name = prompt('Enter new collection name (e.g. "World Cup Collection 26"):');
+  if (!name?.trim()) return;
+
+  const formData = new FormData();
+  formData.append('name', `${name.trim()} (placeholder)`);
+  formData.append('price', '0');
+  formData.append('categories', JSON.stringify([]));
+  formData.append('collections', JSON.stringify([name.trim()]));
+  formData.append('emoji', '✨');
+  formData.append('sizes', JSON.stringify([]));
+  formData.append('available', 'false');
+
+  await fetch(`${API}/api/products`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+
+  showToast(`Collection "${name}" created!`, 'success');
+  loadCollectionsPage();
+  loadProducts();
+}
+
+function openBulkCollectionsModal() {
+  document.getElementById('bulk-collections-input').value = '';
+  document.getElementById('bulk-collections-modal').classList.add('open');
+}
+
+async function submitBulkCollectionsModal() {
+  const raw = document.getElementById('bulk-collections-input').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  if (lines.length === 0) return showToast('Enter at least one collection', 'error');
+
+  let created = 0;
+  for (const name of lines) {
+    const formData = new FormData();
+    formData.append('name', `${name} (placeholder)`);
+    formData.append('price', '0');
+    formData.append('categories', JSON.stringify([]));
+    formData.append('collections', JSON.stringify([name]));
+    formData.append('emoji', '✨');
+    formData.append('sizes', JSON.stringify([]));
+    formData.append('available', 'false');
+
+    await fetch(`${API}/api/products`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    created++;
+  }
+
+  showToast(`${created} collection${created === 1 ? '' : 's'} created!`, 'success');
+  closeModal('bulk-collections-modal');
+  loadCollectionsPage();
+  loadProducts();
+}
+
+async function toggleCollectionActive(name, available) {
+  await fetch(`${API}/api/products/collections/${encodeURIComponent(name)}/toggle`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ available })
+  });
+  showToast(`Collection "${name}" ${available ? 'activated ✅' : 'hidden 🔴'}`, 'success');
+  loadProducts();
+}
+
+async function renameCollectionAdmin(oldName) {
+  const newName = prompt(`Rename "${oldName}" to:`, oldName);
+  if (!newName?.trim() || newName === oldName) return;
+
+  await fetch(`${API}/api/products/collections/rename`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ oldName, newName: newName.trim() })
+  });
+
+  showToast('Collection renamed!', 'success');
+  loadCollectionsPage();
+  loadProducts();
+}
+
+async function deleteCollectionAdmin(name) {
+  if (!confirm(`Delete "${name}"? Products stay — this just removes the collection tag from all of them.`)) return;
+
+  await fetch(`${API}/api/products/collections/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+    headers: authHeaders()
+  });
+
+  showToast('Collection deleted', 'success');
+  loadCollectionsPage();
   loadProducts();
 }
 
