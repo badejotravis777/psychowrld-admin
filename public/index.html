@@ -509,6 +509,9 @@
       <button class="nav-item" onclick="showPage('agents')">
         <span class="icon">👥</span> Agents
       </button>
+      <button class="nav-item" onclick="showPage('delivery')">
+        <span class="icon">🚚</span> Delivery
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" style="width:100%;margin-bottom:8px">
@@ -611,6 +614,63 @@
         <div id="orders-table"></div>
       </div>
     </div>
+
+
+    <!-- DELIVERY -->
+    <div id="page-delivery" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Delivery Settings</div>
+          <div class="page-subtitle">Control pricing without touching code</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveDeliverySettings()">Save Changes</button>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">Store Origin</div></div>
+        <div style="padding:20px">
+          <div class="form-group">
+            <label>Store Address (delivery distance is measured from here)</label>
+            <input type="text" id="dlv-store-address" placeholder="e.g. No 3 Nathan Street, Off Ojuelegba Road, Surulere" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title">Domestic (Nigeria) Pricing</div></div>
+        <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>Base Fee (₦)</label>
+            <input type="number" id="dlv-base-fee" />
+          </div>
+          <div class="form-group">
+            <label>Rate per KM (₦)</label>
+            <input type="number" id="dlv-rate-per-km" />
+          </div>
+          <div class="form-group">
+            <label>Minimum Fee (₦)</label>
+            <input type="number" id="dlv-min-fee" />
+          </div>
+          <div class="form-group">
+            <label>Maximum Fee (₦)</label>
+            <input type="number" id="dlv-max-fee" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">International Regions</div>
+        </div>
+        <div style="padding:20px">
+          <div id="intl-regions-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px"></div>
+          <button class="btn btn-ghost btn-sm" onclick="addIntlRegionRow()" style="border-style:dashed">+ Add Region</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENTS -->
+    <div id="page-agents" class="page">
 
     <!-- AGENTS -->
     <div id="page-agents" class="page">
@@ -880,6 +940,7 @@ function showPage(page) {
   event.currentTarget.classList.add('active');
   if (page === 'orders') loadOrders('');
   if (page === 'categories') loadCategories();
+  if (page === 'delivery') loadDeliverySettings();
 }
 
 // ── DASHBOARD ──
@@ -1032,6 +1093,77 @@ function getProductSubcategoryForCategory(product, category) {
     if (match) return match.subcategory || '';
   }
   return product.subcategory || '';
+}
+
+
+// ── DELIVERY SETTINGS ──
+let intlRegions = [];
+
+async function loadDeliverySettings() {
+  const res = await fetch(`${API}/api/delivery-settings`, { headers: authHeaders() });
+  const settings = await res.json();
+
+  document.getElementById('dlv-store-address').value = settings.storeAddress || '';
+  document.getElementById('dlv-base-fee').value = settings.baseFee ?? 1000;
+  document.getElementById('dlv-rate-per-km').value = settings.ratePerKm ?? 150;
+  document.getElementById('dlv-min-fee').value = settings.minFee ?? 1500;
+  document.getElementById('dlv-max-fee').value = settings.maxFee ?? 15000;
+
+  intlRegions = settings.internationalRegions || [];
+  renderIntlRegions();
+}
+
+function renderIntlRegions() {
+  const el = document.getElementById('intl-regions-container');
+  if (intlRegions.length === 0) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text2)">No international regions set yet — international customers will always be routed to an agent for a manual quote.</div>`;
+    return;
+  }
+
+  el.innerHTML = intlRegions.map((r, i) => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start">
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <input type="text" placeholder="Region name (e.g. West Africa)" value="${r.name || ''}" oninput="intlRegions[${i}].name = this.value" />
+        <input type="text" placeholder="Countries, comma-separated (e.g. ghana, benin, togo)" value="${(r.countries || []).join(', ')}" oninput="intlRegions[${i}].countries = this.value.split(',').map(c => c.trim().toLowerCase()).filter(Boolean)" />
+        <input type="number" placeholder="Flat fee (₦)" value="${r.fee ?? ''}" oninput="intlRegions[${i}].fee = Number(this.value)" style="width:200px" />
+      </div>
+      <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="removeIntlRegionRow(${i})" type="button">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function addIntlRegionRow() {
+  intlRegions.push({ name: '', countries: [], fee: 0 });
+  renderIntlRegions();
+}
+
+function removeIntlRegionRow(index) {
+  intlRegions.splice(index, 1);
+  renderIntlRegions();
+}
+
+async function saveDeliverySettings() {
+  const body = {
+    storeAddress: document.getElementById('dlv-store-address').value,
+    baseFee: document.getElementById('dlv-base-fee').value,
+    ratePerKm: document.getElementById('dlv-rate-per-km').value,
+    minFee: document.getElementById('dlv-min-fee').value,
+    maxFee: document.getElementById('dlv-max-fee').value,
+    internationalRegions: intlRegions.filter(r => r.name.trim() && r.countries.length > 0 && r.fee > 0),
+  };
+
+  const res = await fetch(`${API}/api/delivery-settings`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  if (res.ok) {
+    showToast('Delivery settings saved!', 'success');
+    loadDeliverySettings();
+  } else {
+    showToast('Failed to save settings', 'error');
+  }
 }
 
 function getSubcategorySuggestions(category) {

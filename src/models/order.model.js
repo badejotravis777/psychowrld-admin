@@ -16,6 +16,9 @@ const orderSchema = new mongoose.Schema(
     deliveryFee: { type: Number, default: 0 },
     total: Number,
     deliveryAddress: { type: String, default: "" },
+    deliveryType: { type: String, default: "" },
+    distanceKm: { type: Number, default: null },
+    deliveryRegion: { type: String, default: "" },
     status: {
       type: String,
       default: "pending",
