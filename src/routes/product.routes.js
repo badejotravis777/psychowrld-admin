@@ -270,8 +270,11 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
       for (const publicId of toRemove) {
         await cloudinary.uploader.destroy(publicId);
       }
-      product.imagePublicIds = product.imagePublicIds.filter(id => !toRemove.includes(id));
-      product.images = product.images.filter((_, i) => !toRemove.includes(product.imagePublicIds[i]));
+      // Filter images using the ORIGINAL publicIds array before it gets shortened,
+      // so indices still line up correctly between the two arrays
+      const originalPublicIds = product.imagePublicIds;
+      product.images = product.images.filter((_, i) => !toRemove.includes(originalPublicIds[i]));
+      product.imagePublicIds = product.imagePublicIds.filter((id) => !toRemove.includes(id));
     }
 
     if (req.files && req.files.length > 0) {
