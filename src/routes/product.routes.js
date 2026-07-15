@@ -263,18 +263,25 @@ router.put("/:id", auth, uploadMultiple, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: "Product not found" });
 
-    const { name, description, price, categories, collections, subcategory, categorySubcategories, badge, emoji, sizes, colors, customAttributes, available, removeImages } = req.body;
+    const { name, description, price, categories, collections, subcategory, categorySubcategories, badge, emoji, sizes, colors, customAttributes, available, removeImages, removeImageUrls } = req.body;
 
-    if (removeImages) {
-      const toRemove = JSON.parse(removeImages);
-      for (const publicId of toRemove) {
+    if (removeImageUrls) {
+      // Remove by URL — every image always has one, unlike publicId which can be
+      // legitimately empty on duplicated products (they share Cloudinary assets with
+      // the original, so their imagePublicIds is intentionally cleared to avoid one
+      // product's image removal deleting the asset out from under the other).
+      const urlsToRemove = JSON.parse(removeImageUrls);
+      const publicIdsToDestroy = removeImages ? JSON.parse(removeImages) : [];
+
+      for (const publicId of publicIdsToDestroy) {
         await cloudinary.uploader.destroy(publicId);
       }
-      // Filter images using the ORIGINAL publicIds array before it gets shortened,
-      // so indices still line up correctly between the two arrays
-      const originalPublicIds = product.imagePublicIds;
-      product.images = product.images.filter((_, i) => !toRemove.includes(originalPublicIds[i]));
-      product.imagePublicIds = product.imagePublicIds.filter((id) => !toRemove.includes(id));
+
+      const originalImages = product.images;
+      const originalPublicIds = product.imagePublicIds || [];
+
+      product.images = originalImages.filter((url) => !urlsToRemove.includes(url));
+      product.imagePublicIds = originalPublicIds.filter((_, i) => !urlsToRemove.includes(originalImages[i]));
     }
 
     if (req.files && req.files.length > 0) {
