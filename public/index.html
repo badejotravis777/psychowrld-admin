@@ -1912,9 +1912,9 @@ function renderChatPanel(session) {
       `).join('')}
     </div>
     <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
-      <input type="text" id="reply-input-${session.customerNumber}" placeholder="Type a reply..." style="flex:1"
+      <input type="text" id="reply-input-${session.customerNumber}" placeholder="Type a reply..." style="flex:1;min-width:0;width:auto"
         onkeydown="if(event.key==='Enter') sendAgentReply('${session.customerNumber}')" />
-      <button class="btn btn-primary btn-sm" onclick="sendAgentReply('${session.customerNumber}')">Send</button>
+      <button class="btn btn-primary btn-sm" onclick="sendAgentReply('${session.customerNumber}')" style="width:auto;flex-shrink:0;white-space:nowrap">Send</button>
     </div>
   `;
 }
