@@ -683,19 +683,29 @@
       </div>
     </div>
 
-    <!-- AGENTS -->
-    <div id="page-agents" class="page">
 
     <!-- AGENTS -->
     <div id="page-agents" class="page">
       <div class="page-header">
         <div>
           <div class="page-title">Agents</div>
-          <div class="page-subtitle">Manage your team</div>
+          <div class="page-subtitle">Manage your team & live customer sessions</div>
         </div>
         <button class="btn btn-primary" onclick="openAgentModal()">+ Add Agent</button>
       </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div class="card-title">💬 Live Customer Sessions</div>
+          <button class="btn btn-ghost btn-sm" onclick="loadAgentSessions()">🔄 Refresh</button>
+        </div>
+        <div id="agent-sessions-container" style="padding:16px">
+          <div style="color:var(--text2);font-size:13px">Loading sessions...</div>
+        </div>
+      </div>
+
       <div class="card">
+        <div class="card-header"><div class="card-title">👥 Team</div></div>
         <div id="agents-table"></div>
       </div>
     </div>
@@ -980,6 +990,7 @@ function showPage(page) {
   if (page === 'categories') loadCategories();
   if (page === 'collections') loadCollectionsPage();
   if (page === 'delivery') loadDeliverySettings();
+  if (page === 'agents') loadAgentSessions();
 }
 
 // ── DASHBOARD ──
@@ -1850,6 +1861,107 @@ async function deleteAgent(id) {
   await fetch(`${API}/api/agents/${id}`, { method: 'DELETE', headers: authHeaders() });
   showToast('Agent deleted', 'success');
   loadAgents();
+}
+
+// ── AGENT LIVE SESSIONS ──
+let activeSessionNumber = null;
+
+async function loadAgentSessions() {
+  const res = await fetch(`${API}/api/agent-sessions`, { headers: authHeaders() });
+  const sessions = await res.json();
+  renderAgentSessions(sessions);
+}
+
+function renderAgentSessions(sessions) {
+  const el = document.getElementById('agent-sessions-container');
+
+  if (!sessions.length) {
+    el.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:8px 0">No active sessions right now.</div>`;
+    return;
+  }
+
+  el.innerHTML = sessions.map(s => `
+    <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">
+      <div style="background:var(--surface2);padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <span style="font-weight:600;font-size:14px">+${s.customerNumber}</span>
+          <span class="badge badge-${s.status === 'waiting' ? 'pending' : s.status === 'active' ? 'active' : 'inactive'}" style="margin-left:8px">${s.status}</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="openChat('${s.customerNumber}')">💬 Open Chat</button>
+          <button class="btn btn-danger btn-sm" onclick="endAgentSession('${s.customerNumber}')">✅ End Session</button>
+        </div>
+      </div>
+      ${activeSessionNumber === s.customerNumber ? renderChatPanel(s) : ''}
+    </div>
+  `).join('');
+}
+
+function renderChatPanel(session) {
+  const msgs = session.messages || [];
+  return `
+    <div style="height:280px;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px" id="chat-messages-${session.customerNumber}">
+      ${msgs.length === 0 ? `<div style="color:var(--text2);font-size:13px;text-align:center;margin-top:40px">No messages yet</div>` : ''}
+      ${msgs.map(m => `
+        <div style="display:flex;justify-content:${m.from === 'agent' ? 'flex-end' : 'flex-start'}">
+          <div style="max-width:75%;background:${m.from === 'agent' ? 'var(--accent)' : 'var(--surface2)'};color:${m.from === 'agent' ? 'white' : 'var(--text)'};border-radius:10px;padding:8px 12px;font-size:13px">
+            <div>${m.text}</div>
+            <div style="font-size:10px;opacity:0.7;margin-top:2px">${new Date(m.timestamp).toLocaleTimeString()}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+      <input type="text" id="reply-input-${session.customerNumber}" placeholder="Type a reply..." style="flex:1"
+        onkeydown="if(event.key==='Enter') sendAgentReply('${session.customerNumber}')" />
+      <button class="btn btn-primary btn-sm" onclick="sendAgentReply('${session.customerNumber}')">Send</button>
+    </div>
+  `;
+}
+
+function openChat(customerNumber) {
+  activeSessionNumber = activeSessionNumber === customerNumber ? null : customerNumber;
+  loadAgentSessions();
+  setTimeout(() => {
+    const el = document.getElementById(`chat-messages-${customerNumber}`);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, 100);
+}
+
+async function sendAgentReply(customerNumber) {
+  const input = document.getElementById(`reply-input-${customerNumber}`);
+  const text = input?.value?.trim();
+  if (!text) return;
+
+  input.value = '';
+  const res = await fetch(`${API}/api/agent-sessions/${customerNumber}/reply`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ text })
+  });
+
+  if (res.ok) {
+    loadAgentSessions();
+  } else {
+    showToast('Failed to send message', 'error');
+  }
+}
+
+async function endAgentSession(customerNumber) {
+  if (!confirm(`End session with +${customerNumber}? They will be returned to the bot menu.`)) return;
+
+  const res = await fetch(`${API}/api/agent-sessions/${customerNumber}/end`, {
+    method: 'POST',
+    headers: authHeaders()
+  });
+
+  if (res.ok) {
+    showToast('Session ended — customer returned to bot', 'success');
+    if (activeSessionNumber === customerNumber) activeSessionNumber = null;
+    loadAgentSessions();
+  } else {
+    showToast('Failed to end session', 'error');
+  }
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
