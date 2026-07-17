@@ -22,14 +22,14 @@ const syncProductToCatalog = async (product) => {
     const existing = existingRes.data?.data?.[0];
 
     if (existing) {
-      // Product exists — only update name, price, availability
-      // DO NOT touch images to preserve any manually added images in Commerce Manager
       const updatePayload = {
         name: product.name,
         description: product.description || product.name,
         price: product.price * 100,
         currency: "NGN",
         availability: product.available ? "in stock" : "out of stock",
+        image_url: product.images[0],
+        additional_image_urls: product.images.slice(1),
         url: `https://psychowrld-bot.onrender.com/product/${product._id}`,
         brand: "Psychowrld",
       };
