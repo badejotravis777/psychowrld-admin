@@ -92,19 +92,41 @@ const removeFromCatalog = async (productId) => {
 };
 
 // Sync all products
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Sync all products — with a short pause between each write and one retry on
+// Meta's "(#100) Error persisting items" quirk, which shows up when catalog
+// writes are fired back-to-back with no gap between them.
 const syncAllProducts = async (products) => {
   console.log(`🔄 Syncing ${products.length} products to catalog...`);
   let success = 0, failed = 0;
+  const failedNames = [];
 
   for (const product of products) {
     if (product.available && product.images?.length > 0) {
-      const result = await syncProductToCatalog(product);
-      result.success ? success++ : failed++;
+      let result = await syncProductToCatalog(product);
+
+      if (!result.success) {
+        // One retry after a short pause — covers the transient "persisting items" case
+        await sleep(1200);
+        result = await syncProductToCatalog(product);
+      }
+
+      if (result.success) {
+        success++;
+      } else {
+        failed++;
+        failedNames.push(product.name);
+      }
+
+      // Breathing room between every product so Meta doesn't throttle the batch
+      await sleep(400);
     }
   }
 
   console.log(`✅ Catalog sync complete: ${success} synced, ${failed} failed`);
-  return { success, failed };
+  if (failedNames.length) console.log(`❌ Failed products: ${failedNames.join(", ")}`);
+  return { success, failed, failedNames };
 };
 
 module.exports = { syncProductToCatalog, removeFromCatalog, syncAllProducts };
