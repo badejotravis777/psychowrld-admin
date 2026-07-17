@@ -10,6 +10,7 @@ const orderRoutes = require("./src/routes/order.routes");
 const agentRoutes = require("./src/routes/agent.routes");
 const deliverySettingsRoutes = require("./src/routes/deliverySettings.routes");
 const agentSessionsRouter = require("./src/routes/agent-sessions.routes");
+const customerServiceContactsRoutes = require("./src/routes/customer-service-contacts.routes");
 
 
 const app = express();
@@ -26,7 +27,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/agents", agentRoutes);
 app.use("/api/delivery-settings", deliverySettingsRoutes);
 app.use("/api/agent-sessions", agentSessionsRouter);
-
+app.use("/api/customer-service-contacts", customerServiceContactsRoutes);
 // Fallback to index.html
 app.get("/{*path}", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
