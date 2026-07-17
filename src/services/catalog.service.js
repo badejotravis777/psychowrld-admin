@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 const CATALOG_ID = process.env.CATALOG_ID;
-const BASE_URL = `https://graph.facebook.com/v19.0`;
+const BASE_URL = `https://graph.facebook.com/v22.0`;
 
 const getToken = () => process.env.META_ACCESS_TOKEN;
 
