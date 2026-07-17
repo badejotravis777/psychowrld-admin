@@ -515,6 +515,9 @@
       <button class="nav-item" onclick="showPage('delivery')">
         <span class="icon">🚚</span> Delivery
       </button>
+      <button class="nav-item" onclick="showPage('support')">
+        <span class="icon">☎️</span> Customer Service
+      </button>
     </nav>
     <div class="sidebar-footer">
       <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" style="width:100%;margin-bottom:8px">
@@ -684,8 +687,22 @@
     </div>
 
 
-    <!-- AGENTS -->
-    <div id="page-agents" class="page">
+  <!-- CUSTOMER SERVICE -->
+  <div id="page-support" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Customer Service Numbers</div>
+        <div class="page-subtitle">These show as tap-to-chat options when a customer asks for an agent on WhatsApp</div>
+      </div>
+      <button class="btn btn-primary" onclick="openContactModal()">+ Add Number</button>
+    </div>
+    <div class="card">
+      <div id="support-contacts-table"></div>
+    </div>
+  </div>
+
+  <!-- AGENTS -->
+  <div id="page-agents" class="page">
       <div class="page-header">
         <div>
           <div class="page-title">Agents</div>
@@ -850,6 +867,33 @@
   </div>
 </div>
 
+<!-- CONTACT MODAL -->
+<div class="modal-overlay" id="contact-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title" id="contact-modal-title">Add Number</div>
+      <button class="modal-close" onclick="closeContactModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="contact-id" />
+      <div class="form-group">
+        <label>Label (shown to customers)</label>
+        <input type="text" id="contact-label" placeholder="e.g. Sales, Support, Order Issues" />
+      </div>
+      <div class="form-group">
+        <label>WhatsApp Number (with country code, no + or spaces)</label>
+        <input type="text" id="contact-number" placeholder="e.g. 2348012345678" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeContactModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveContact()">Save Number</button>
+    </div>
+  </div>
+</div>
+
+<!-- BULK CATEGORY MODAL -->
+
 <!-- BULK CATEGORY MODAL -->
 <div class="modal-overlay" id="bulk-category-modal">
   <div class="modal" style="max-width:480px">
@@ -991,6 +1035,7 @@ function showPage(page) {
   if (page === 'collections') loadCollectionsPage();
   if (page === 'delivery') loadDeliverySettings();
   if (page === 'agents') loadAgentSessions();
+  if (page === 'support') loadContacts();
 }
 
 // ── DASHBOARD ──
@@ -2308,6 +2353,87 @@ async function deleteCollectionAdmin(name) {
   loadCollectionsPage();
   loadProducts();
 }
+
+// ── CUSTOMER SERVICE CONTACTS ──
+let allContacts = [];
+
+async function loadContacts() {
+  const res = await fetch(`${API}/api/customer-service-contacts`, { headers: authHeaders() });
+  allContacts = await res.json();
+  renderContactsTable();
+}
+
+function renderContactsTable() {
+  const el = document.getElementById('support-contacts-table');
+  if (!allContacts.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">☎️</div><p>No numbers added yet.</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Label</th><th>WhatsApp Number</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${allContacts.map(c => `
+        <tr>
+          <td><strong>${c.label}</strong></td>
+          <td style="font-family:monospace;font-size:12px">+${c.number}</td>
+          <td><span class="badge badge-${c.active ? 'active' : 'inactive'}">${c.active ? 'Active' : 'Hidden'}</span></td>
+          <td><div class="actions">
+            <button class="btn btn-ghost btn-sm" onclick='editContact(${JSON.stringify(c)})'>✏️</button>
+            <button class="btn btn-ghost btn-sm" onclick="toggleContact('${c._id}', ${c.active})">${c.active ? '🔴' : '🟢'}</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteContact('${c._id}')">🗑️</button>
+          </div></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+}
+
+function openContactModal(contact = null) {
+  document.getElementById('contact-modal-title').textContent = contact ? 'Edit Number' : 'Add Number';
+  document.getElementById('contact-id').value = contact?._id || '';
+  document.getElementById('contact-label').value = contact?.label || '';
+  document.getElementById('contact-number').value = contact?.number || '';
+  document.getElementById('contact-modal').classList.add('open');
+}
+
+function closeContactModal() { document.getElementById('contact-modal').classList.remove('open'); }
+
+function editContact(contact) { openContactModal(contact); }
+
+async function saveContact() {
+  const id = document.getElementById('contact-id').value;
+  const body = {
+    label: document.getElementById('contact-label').value.trim(),
+    number: document.getElementById('contact-number').value.trim().replace(/[^\d]/g, ''),
+  };
+  if (!body.label || !body.number) return showToast('Label and number required', 'error');
+
+  const url = id ? `${API}/api/customer-service-contacts/${id}` : `${API}/api/customer-service-contacts`;
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+
+  if (res.ok) {
+    showToast('Number saved!', 'success');
+    closeContactModal();
+    loadContacts();
+  } else {
+    showToast('Failed to save number', 'error');
+  }
+}
+
+async function toggleContact(id, current) {
+  await fetch(`${API}/api/customer-service-contacts/${id}/toggle`, { method: 'PATCH', headers: authHeaders() });
+  showToast(current ? 'Number hidden' : 'Number activated', 'success');
+  loadContacts();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Delete this number?')) return;
+  await fetch(`${API}/api/customer-service-contacts/${id}`, { method: 'DELETE', headers: authHeaders() });
+  showToast('Number deleted', 'success');
+  loadContacts();
+}
+
+// ── THEME ──
 
 // ── THEME ──
 function toggleTheme() {
