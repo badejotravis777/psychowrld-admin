@@ -34,10 +34,16 @@ const syncProductToCatalog = async (product) => {
         brand: "Psychowrld",
       };
 
-      await axios.post(`${BASE_URL}/${existing.id}`, updatePayload, {
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-      });
-      console.log(`✅ Updated catalog (preserved images): ${product.name}`);
+      try {
+        await axios.post(`${BASE_URL}/${existing.id}`, updatePayload, {
+          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        });
+        console.log(`✅ Updated catalog (preserved images): ${product.name}`);
+      } catch (updateErr) {
+        console.error(`❌ FULL update payload for ${product.name}:`, JSON.stringify(updatePayload, null, 2));
+        console.error(`❌ FULL Meta error response for ${product.name}:`, JSON.stringify(updateErr.response?.data, null, 2));
+        throw updateErr;
+      }
     } else {
       // New product — create with images from our database
       const createPayload = {
@@ -55,10 +61,16 @@ const syncProductToCatalog = async (product) => {
         category: (product.categories && product.categories[0]) || "",
       };
 
-      await axios.post(`${BASE_URL}/${CATALOG_ID}/products`, createPayload, {
-        headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-      });
-      console.log(`✅ Added to catalog: ${product.name}`);
+      try {
+        await axios.post(`${BASE_URL}/${CATALOG_ID}/products`, createPayload, {
+          headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
+        });
+        console.log(`✅ Added to catalog: ${product.name}`);
+      } catch (createErr) {
+        console.error(`❌ FULL create payload for ${product.name}:`, JSON.stringify(createPayload, null, 2));
+        console.error(`❌ FULL Meta error response for ${product.name}:`, JSON.stringify(createErr.response?.data, null, 2));
+        throw createErr;
+      }
     }
 
     return { success: true };
