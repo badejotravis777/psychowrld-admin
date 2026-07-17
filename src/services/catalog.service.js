@@ -5,18 +5,6 @@ const BASE_URL = `https://graph.facebook.com/v19.0`;
 
 const getToken = () => process.env.META_ACCESS_TOKEN;
 
-// Badges are a marketing label only — they don't change purchasability,
-// just make the product visibly stand out in the real WhatsApp catalog view
-const BADGE_PREFIXES = {
-  coming_soon: "🔜 Coming Soon — ",
-  restocked: "🎉 Restocked — ",
-};
-
-const getSyncName = (product) => {
-  const prefix = BADGE_PREFIXES[product.badge] || "";
-  return `${prefix}${product.name}`;
-};
-
 // Push a single product to Meta catalog
 const syncProductToCatalog = async (product) => {
   try {
@@ -37,7 +25,7 @@ const syncProductToCatalog = async (product) => {
       // Product exists — only update name, price, availability
       // DO NOT touch images to preserve any manually added images in Commerce Manager
       const updatePayload = {
-        name: getSyncName(product),
+        name: product.name,
         description: product.description || product.name,
         price: product.price * 100,
         currency: "NGN",
@@ -54,7 +42,7 @@ const syncProductToCatalog = async (product) => {
       // New product — create with images from our database
       const createPayload = {
         retailer_id: product._id.toString(),
-        name: getSyncName(product),
+        name: product.name,
         description: product.description || product.name,
         price: product.price * 100,
         currency: "NGN",
